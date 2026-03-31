@@ -1,0 +1,67 @@
+import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
+import type { NextRequest } from "next/server";
+
+export async function middleware(request: NextRequest) {
+  const token = request.cookies.get("auth-token")?.value;
+  
+  if (!token) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
+
+    const userRole = decoded?.role;
+    const path = request.nextUrl.pathname;
+
+    // Block employees from accessing admin routes
+    if (userRole === "EMPLOYEE") {
+      const adminRoutes = [
+        "/dashboard/users",
+        "/dashboard/reports", 
+        "/dashboard/settings",
+        "/dashboard/attendance",
+        "/api/users",
+        "/api/reports",
+        "/api/attendance/stats"
+      ];
+
+      // Allow employees to access only specific routes
+      const allowedRoutes = [
+        "/dashboard",
+        "/dashboard/scan",
+        "/dashboard/live-monitor",
+        "/api/attendance/generate-token",
+        "/api/attendance/scan"
+      ];
+
+      // Check if current path is an admin route
+      const isAdminRoute = adminRoutes.some(route => path.startsWith(route));
+      
+      // Check if current path is not an allowed route
+      const isAllowedRoute = allowedRoutes.some(route => path === route || path.startsWith(route));
+
+      if (isAdminRoute && !isAllowedRoute) {
+        return NextResponse.redirect(new URL("/dashboard/scan", request.url));
+      }
+    }
+
+    // Redirect employees to scan page if they try to access dashboard directly
+    if (userRole === "EMPLOYEE" && path === "/dashboard") {
+      return NextResponse.redirect(new URL("/dashboard/scan", request.url));
+    }
+
+    return NextResponse.next();
+  } catch (error) {
+    console.error("Middleware error:", error);
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+}
+
+export const config = {
+  matcher: [
+    "/dashboard/:path*",
+    "/api/:path*"
+  ]
+};

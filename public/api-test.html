@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>API Test Page</h1>
+    <p>Testing direct API calls...</p>
+    <div id="results"></div>
+    
+    <script>
+        async function testAPIs() {
+            const results = document.getElementById('results');
+            const origin = window.location.origin;
+            
+            results.innerHTML = '<h2>Testing APIs...</h2>';
+            
+            try {
+                // Test users API
+                const usersRes = await fetch(`${origin}/api/users`);
+                const usersData = await usersRes.json();
+                results.innerHTML += `<p>✅ Users API: ${usersRes.status} - Found ${Array.isArray(usersData) ? usersData.length : 'non-array'} users</p>`;
+                
+                // Test departments API
+                const deptRes = await fetch(`${origin}/api/departments`);
+                const deptData = await deptRes.json();
+                results.innerHTML += `<p>✅ Departments API: ${deptRes.status} - Found ${Array.isArray(deptData) ? deptData.length : 'non-array'} departments</p>`;
+                
+                // Test attendance API
+                const attendRes = await fetch(`${origin}/api/attendance`);
+                const attendData = await attendRes.json();
+                results.innerHTML += `<p>✅ Attendance API: ${attendRes.status} - Found ${Array.isArray(attendData) ? attendData.length : 'non-array'} records</p>`;
+                
+            } catch (error) {
+                results.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+                results.innerHTML += `<p>Current Origin: ${origin}</p>`;
+            }
+        }
+        
+        // Run test immediately
+        testAPIs();
+    </script>
+</body>
+</html>
