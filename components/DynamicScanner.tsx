@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { QRCodeSVG } from "qrcode.react";
-import { RefreshCw, Clock, Shield, Users, UserX, AlertCircle, Activity } from "lucide-react";
+import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
+import { RefreshCw, Users, UserX, AlertCircle, Activity } from 'lucide-react';
 
 interface AttendanceStats {
-  totalEmployees: number;
   presentToday: number;
   absentToday: number;
   lateToday: number;
+  totalEmployees: number;
   recentCheckIns: Array<{
-    id: number;
+    id: string;
     userName: string;
     department: string;
     time: string;
@@ -19,274 +19,216 @@ interface AttendanceStats {
   }>;
 }
 
-interface DynamicScannerProps {
-  className?: string;
-}
-
-export default function DynamicScanner({ className = "" }: DynamicScannerProps) {
-  const [token, setToken] = useState<string>("");
-  const [countdown, setCountdown] = useState<number>(10);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
+export default function DynamicScanner({ className = "" }: { className?: string }) {
+  const [token, setToken] = useState<string>('');
   const [stats, setStats] = useState<AttendanceStats>({
-    totalEmployees: 0,
     presentToday: 0,
     absentToday: 0,
     lateToday: 0,
+    totalEmployees: 0,
     recentCheckIns: []
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [countdown, setCountdown] = useState(10);
+  const [tokenError, setTokenError] = useState<string>('');
+  const [mounted, setMounted] = useState(false);
 
-  // Fetch stats
-  const fetchStats = useCallback(async () => {
+  // Prevent hydration issues
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const fetchToken = useCallback(async () => {
+    if (isLoading) return; // Prevent concurrent requests
+    
+    setIsLoading(true);
+    setTokenError('');
     try {
-      const response = await fetch('/api/attendance/stats');
+      console.log('Fetching token from /api/attendance/generate-token');
+      const response = await fetch('/api/attendance/generate-token');
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        setStats(data);
+        console.log('Token data received:', data);
+        if (data.token) {
+          setToken(data.token);
+          setCountdown(10);
+        } else {
+          setTokenError('No token received');
+        }
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to fetch token:', response.statusText, errorText);
+        setTokenError('Failed to generate token');
       }
     } catch (error) {
-      console.error('Failed to fetch stats:', error);
+      console.error('Error fetching token:', error);
+      setTokenError('Network error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading]);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await fetch('/api/dashboard/stats');
+      if (response.ok) {
+        const data = await response.json();
+        setStats({
+          presentToday: data.presentToday || 0,
+          absentToday: data.absentToday || 0,
+          lateToday: data.lateToday || 0,
+          totalEmployees: data.totalEmployees || 0,
+          recentCheckIns: data.recentCheckIns || []
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
     }
   }, []);
 
-  // Fetch token
-  const fetchToken = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError("");
-      
-      const response = await fetch('/api/attendance/generate-token', {
-        method: 'GET',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch token');
-      }
-      
-      const data = await response.json();
-      setToken(data.token);
-      setCountdown(10);
-      setIsLoading(false);
-      
-      // Refresh stats after token update
-      fetchStats();
-    } catch (err) {
-      setError("Failed to generate QR code");
-      setIsLoading(false);
-    }
-  }, [fetchStats]);
-
   useEffect(() => {
+    if (!mounted) return;
+    
+    // Initial fetch
     fetchToken();
     fetchStats();
-  }, [fetchToken, fetchStats]);
 
-  useEffect(() => {
+    // Single interval for both operations
     const interval = setInterval(() => {
-      fetchToken();
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [fetchToken]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchStats();
+      fetchStats(); // Fetch stats every 5 seconds
     }, 5000);
 
-    return () => clearInterval(interval);
-  }, [fetchStats]);
-
-  useEffect(() => {
-    if (countdown <= 0) return;
-
-    const timer = setInterval(() => {
+    // Separate countdown timer for token refresh
+    const countdownTimer = setInterval(() => {
       setCountdown(prev => {
-        if (prev <= 1) return 10;
+        if (prev <= 1) {
+          fetchToken(); // Refresh token when countdown reaches 0
+          return 10; // Reset countdown
+        }
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [countdown]);
+    return () => {
+      clearInterval(interval);
+      clearInterval(countdownTimer);
+    };
+  }, [mounted, fetchToken, fetchStats]);
 
-  const progressPercentage = (countdown / 10) * 100;
+  if (!mounted) {
+    return (
+      <div className={`bg-[#f8fafc] min-h-screen p-8 ${className}`}>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-[#475569]">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`p-10 space-y-8 fade-in bg-white text-gray-900 ${className}`} style={{ fontFamily: 'Cairo, Tajawal, sans-serif' }}>
-      <div className="text-right">
-        <h1 className="text-5xl font-black text-gradient">المراقب المباشر</h1>
-        <p className="text-xl text-gray-600 mt-3">شاشة عرض الباركود لتسجيل الحضور</p>
+    <div className={`bg-[#f8fafc] min-h-screen p-8 ${className}`}>
+      <div className="text-right mt-10">
+        <h1 className="text-5xl font-black text-[#1e293b]">المراقب المباشر</h1>
+        <p className="text-xl text-[#475569] mt-3">شاشة عرض الباركود لتسجيل الحضور</p>
       </div>
 
-      {/* Top Stat Cards - Professional Design */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-green-600/20 to-green-800/20 backdrop-blur-sm border border-green-500/30 rounded-2xl p-6"
+          className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 flex items-center justify-between"
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-green-400 text-lg font-bold">الحاضرون اليوم</p>
-              <p className="text-4xl font-bold text-green-300">{stats.presentToday}</p>
-            </div>
-            <Users className="w-10 h-10 text-green-400" />
+          <div>
+            <p className="text-green-600 text-lg font-bold">الحاضرون اليوم</p>
+            <p className="text-4xl font-bold text-green-700">{stats.presentToday}</p>
           </div>
+          <Users className="w-10 h-10 text-green-600" />
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-red-600/20 to-red-800/20 backdrop-blur-sm border border-red-500/30 rounded-2xl p-6"
+          className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 flex items-center justify-between"
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-red-400 text-lg font-bold">الغائبون اليوم</p>
-              <p className="text-4xl font-bold text-red-300">{stats.absentToday}</p>
-            </div>
-            <UserX className="w-10 h-10 text-red-400" />
+          <div>
+            <p className="text-red-600 text-lg font-bold">الغائبون اليوم</p>
+            <p className="text-4xl font-bold text-red-700">{stats.absentToday}</p>
           </div>
+          <UserX className="w-10 h-10 text-red-600" />
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-gradient-to-br from-amber-600/20 to-amber-800/20 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-6"
+          className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 flex items-center justify-between"
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-amber-400 text-lg font-bold">المتأخرون اليوم</p>
-              <p className="text-4xl font-bold text-amber-300">{stats.lateToday}</p>
-            </div>
-            <AlertCircle className="w-10 h-10 text-amber-400" />
+          <div>
+            <p className="text-amber-600 text-lg font-bold">المتأخرون اليوم</p>
+            <p className="text-4xl font-bold text-amber-700">{stats.lateToday}</p>
           </div>
+          <AlertCircle className="w-10 h-10 text-amber-600" />
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-gradient-to-br from-blue-600/20 to-blue-800/20 backdrop-blur-sm border border-blue-500/30 rounded-2xl p-6"
+          className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 flex items-center justify-between"
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-400 text-lg font-bold">إجمالي الموظفين</p>
-              <p className="text-4xl font-bold text-blue-300">{stats.totalEmployees}</p>
-            </div>
-            <Activity className="w-10 h-10 text-blue-400" />
+          <div>
+            <p className="text-blue-600 text-lg font-bold">إجمالي الموظفين</p>
+            <p className="text-4xl font-bold text-blue-700">{stats.totalEmployees}</p>
           </div>
+          <Activity className="w-10 h-10 text-blue-600" />
         </motion.div>
       </div>
 
-      {/* Center QR Display - Glassmorphism Card */}
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="flex flex-col items-center"
+        className="flex flex-col items-center mt-8"
       >
         <div className="relative">
-          <motion.div
-            animate={{
-              boxShadow: [
-                "0 0 0 0 rgba(59, 130, 246, 0.5)",
-                "0 0 0 20px rgba(59, 130, 246, 0)",
-                "0 0 0 0 rgba(59, 130, 246, 0.5)"
-              ]
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="bg-white/10 backdrop-blur-xl rounded-3xl p-12 border-2 border-white/20 shadow-2xl"
-          >
-            <div className="bg-white/5 backdrop-blur-sm p-8 rounded-2xl border border-white/10">
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-8 max-w-[250px]">
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
               {token ? (
                 <QRCodeSVG
                   value={token}
-                  size={400}
+                  size={200}
                   level="H"
                   includeMargin={true}
                 />
               ) : (
-                <div className="flex items-center justify-center h-[400px]">
-                  <p className="text-blue-400 animate-pulse font-arabic">جاري توليد الكود الخاص بالشركة...</p>
+                <div className="flex flex-col items-center justify-center h-[200px] text-center">
+                  <p className="text-blue-600 animate-pulse mb-2">
+                    {isLoading ? 'جاري توليد الكود...' : 'فشل تحميل الكود'}
+                  </p>
+                  {tokenError && (
+                    <p className="text-red-500 text-sm">{tokenError}</p>
+                  )}
+                  {!isLoading && !token && (
+                    <button
+                      onClick={fetchToken}
+                      className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      إعادة المحاولة
+                    </button>
+                  )}
                 </div>
               )}
-            </div>
-          </motion.div>
-
-          {/* Circular Timer - Pulsing Colored Circles */}
-          <div className="absolute -bottom-6 -right-6">
-            <div className="relative w-24 h-24">
-              <svg className="transform -rotate-90 w-24 h-24">
-                <circle
-                  cx="48"
-                  cy="48"
-                  r="44"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="none"
-                  className="text-white/20"
-                />
-                <motion.circle
-                  cx="48"
-                  cy="48"
-                  r="44"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="none"
-                  strokeDasharray={`${2 * Math.PI * 44}`}
-                  strokeDashoffset={`${2 * Math.PI * 44 * (1 - progressPercentage / 100)}`}
-                  className="text-blue-400"
-                  animate={{ 
-                    strokeDashoffset: 2 * Math.PI * 44 * (1 - progressPercentage / 100),
-                    opacity: [1, 0.8, 1]
-                  }}
-                  transition={{ 
-                    duration: 1, 
-                    ease: "linear",
-                    repeat: Infinity
-                  }}
-                />
-              </svg>
-              <motion.div 
-                className="absolute inset-0 flex items-center justify-center"
-                animate={{
-                  scale: [1, 1.1, 1],
-                  opacity: [1, 0.8, 1]
-                }}
-                transition={{
-                  duration: 1,
-                  repeat: Infinity
-                }}
-              >
-                <span className="text-white font-bold text-2xl drop-shadow-lg">{countdown}</span>
-              </motion.div>
             </div>
           </div>
         </div>
 
-        <div className="mt-12 text-center">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
-            نظام الحضور الذكي
-          </h1>
-          <p className="text-gray-600 text-xl">امسح الكود لتسجيل الحضور • يتم التحديث كل 10 ثوانٍ</p>
-        </div>
-
-        {/* Refresh Button - Electric Blue */}
         <div className="mt-8 flex justify-center">
           <button
             onClick={fetchToken}
             disabled={isLoading}
-            className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 disabled:from-blue-700 disabled:to-blue-800 text-white font-bold text-lg rounded-2xl transition-all duration-200 shadow-xl hover:shadow-2xl disabled:shadow-lg transform hover:scale-105 disabled:scale-100"
+            className="flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-bold text-lg rounded-lg transition-colors shadow-lg"
           >
             <RefreshCw className={`w-6 h-6 ${isLoading ? 'animate-spin' : ''}`} />
             <span>{isLoading ? 'جاري التحديث...' : 'تحديث الكود'}</span>
@@ -294,39 +236,40 @@ export default function DynamicScanner({ className = "" }: DynamicScannerProps) 
         </div>
       </motion.div>
 
-      {/* Bottom Live Feed */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="bg-gray-50 p-8 rounded-2xl border border-gray-200"
+        className="mt-8"
       >
-        <h2 className="text-2xl font-bold mb-6 text-blue-600">تسجيلات الدخول المباشرة</h2>
-        <div className="space-y-3 max-h-80 overflow-y-auto">
-          <AnimatePresence>
-            {stats.recentCheckIns.map((checkIn, index: number) => (
-              <motion.div
-                key={checkIn.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-lg">{checkIn.userName}</p>
-                    <p className="text-gray-600">{checkIn.department}</p>
+        <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-8">
+          <h2 className="text-2xl font-bold mb-6 text-[#1e293b]">تسجيلات الدخول المباشرة</h2>
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            <AnimatePresence>
+              {stats.recentCheckIns.map((checkIn, index: number) => (
+                <motion.div
+                  key={checkIn.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <div>
+                      <p className="font-bold text-[#1e293b] text-lg">{checkIn.userName}</p>
+                      <p className="text-[#475569]">{checkIn.department}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-blue-600 font-medium">{checkIn.time}</p>
-                  <p className="text-gray-500 text-sm">{checkIn.type}</p>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                  <div className="text-right">
+                    <p className="text-blue-600 font-medium">{checkIn.time}</p>
+                    <p className="text-slate-500 text-sm">{checkIn.type}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
         </div>
       </motion.div>
     </div>

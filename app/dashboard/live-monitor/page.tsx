@@ -3,5 +3,9 @@
 import DynamicScanner from "@/components/DynamicScanner";
 
 export default function LiveMonitorPage() {
-  return <DynamicScanner />;
+  return (
+    <div className="max-w-7xl mx-auto">
+      <DynamicScanner />
+    </div>
+  );
 }

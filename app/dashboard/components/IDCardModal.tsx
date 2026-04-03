@@ -31,7 +31,7 @@ export default function IDCardModal({ user, isOpen, onClose }: IDCardModalProps)
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800">
         <div className="p-6 border-b dark:border-slate-800 flex justify-between items-center">
           <h3 className="text-xl font-black text-slate-900 dark:text-white">

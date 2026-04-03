@@ -1,60 +1,36 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+﻿import { NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 export async function GET() {
   try {
-    // Get today's date at midnight
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Fetch real statistics from database
-    const [
-      totalEmployees,
-      presentToday,
-      activeDepartments,
-      attendanceToday
-    ] = await Promise.all([
-      // Total employees count
-      prisma.user.count(),
-      
-      // Present today count (employees who checked in today)
-      prisma.attendance.groupBy({
-        by: ['userId'],
-        where: {
-          timestamp: {
-            gte: today
-          },
-          type: 'IN'
-        }
-      }).then(result => result.length),
-      
-      // Active departments count
-      prisma.department.count({
-        where: {
-          users: {
-            some: {}
-          }
-        }
-      }),
-      
-      // Total attendance records today
-      prisma.attendance.count({
-        where: {
-          timestamp: {
-            gte: today
-          }
-        }
-      })
-    ]);
+    const [totalEmployees, presentTodayResult, activeDepartments, attendanceToday] =
+      await Promise.all([
+        prisma.employee.count(),
+        prisma.attendance.findMany({
+          where: { timestamp: { gte: today }, type: "IN" },
+          select: { employeeId: true },
+          distinct: ["employeeId"],
+        }),
+        prisma.department.count({
+          where: { employees: { some: {} } },
+        }),
+        prisma.attendance.count({
+          where: { timestamp: { gte: today } },
+        }),
+      ]);
 
-    const stats = {
+    return NextResponse.json({
       totalEmployees,
-      presentToday,
+      presentToday: presentTodayResult.length,
       activeDepartments,
-      attendanceToday
-    };
+      attendanceToday,
+    });
 
-    return NextResponse.json(stats);
   } catch (error) {
     console.error("Dashboard stats error:", error);
     return NextResponse.json(

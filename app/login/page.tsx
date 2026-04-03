@@ -28,177 +28,147 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Clear error when user starts typing
-    if (error) {
-      setError("");
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError("");
+    setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email, password: formData.password }),
+      // Validate form data
+      const validatedData = loginSchema.parse(formData);
+      
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(validatedData),
       });
 
-      // جراحياً: نحصل على النص الخام أولاً قبل محاولة تحويله لـ JSON
-      const responseText = await response.text();
-      
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (jsonError) {
-        // إذا فشل التحويل، فهذا يعني أن السيرفر أرسل HTML (خطأ 404 أو 500)
-        console.error('Server returned HTML/Non-JSON:', responseText);
-        throw new Error('حدث خطأ في السيرفر، يرجى التحقق من مسار الـ API');
-      }
+      const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || 'فشل تسجيل الدخول');
-      }
-
-      // النجاح: توجيه المستخدم حسب دوره (Admin أو Employee)
-      const userRole = data.user.role?.toUpperCase();
-      console.log('User role from login:', userRole);
-      
-      // Store user data in localStorage
-      localStorage.setItem('userEmail', data.user.email);
-      localStorage.setItem('userName', data.user.name);
-      localStorage.setItem('userRole', userRole);
-      
-      if (userRole === 'ADMIN') {
-        router.push('/dashboard');
+      if (response.ok) {
+        // Store user data in localStorage
+        localStorage.setItem("user", JSON.stringify(data.user));
+        localStorage.setItem("userRole", data.user.role);
+        
+        // Redirect based on role
+        if (data.user.role === "ADMIN") {
+          router.push("/dashboard");
+        } else {
+          router.push("/dashboard/scan");
+        }
       } else {
-        router.push('/dashboard/scan');
+        setError(data.error || "فشل تسجيل الدخول");
       }
-
-    } catch (err: any) {
-      setError(err.message);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setError(error.errors[0]?.message || "بيانات غير صالحة");
+      } else {
+        setError("بيانات خاطئة أو مشكلة في قاعدة البيانات");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6" style={{ fontFamily: "Cairo, Tajawal, sans-serif" }}>
+    <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-4">
+      {/* Clean ODOO-style centered login */}
       <div className="w-full max-w-md">
-        {/* Logo Section */}
+        {/* Logo/Branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 p-4 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl shadow-xl">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Shield className="w-8 h-8 text-white" />
-            <span className="text-white font-bold text-xl">SmartAttend</span>
           </div>
-          <p className="text-slate-400 mt-4">نظام الحضور الذكي</p>
+          <h1 className="text-2xl font-bold text-[#1e293b] mb-2">شركة الاتحاد</h1>
+          <p className="text-[#475569]">Smart Attend AI</p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-slate-800/50 backdrop-blur-xl rounded-3xl p-8 border border-slate-700 shadow-2xl">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">تسجيل الدخول</h1>
-            <p className="text-slate-400">أدخل بياناتك للوصول إلى النظام</p>
+        {/* Login Form */}
+        <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-8">
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-bold text-[#1e293b] mb-2">تسجيل الدخول</h2>
+            <p className="text-[#475569] text-sm">أدخل بياناتك للوصول إلى النظام</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600" />
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 البريد الإلكتروني
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                  <Mail className="w-5 h-5 text-slate-400" />
-                </div>
+                <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                 <input
-                  id="email"
-                  name="email"
                   type="email"
                   value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="example@company.com"
-                  dir="ltr"
-                  className="w-full pl-4 pr-12 py-4 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full pr-10 pl-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="name@company.com"
+                  disabled={isLoading}
                 />
               </div>
             </div>
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 كلمة المرور
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-slate-400 hover:text-white transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
+                <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                 <input
-                  id="password"
-                  name="password"
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="•••••••••"
-                  className="w-full pl-4 pr-12 py-4 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full pr-10 pl-12 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="••••••••"
+                  disabled={isLoading}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-600/20 border border-red-500/50 rounded-xl p-3">
-                <p className="text-red-400 text-sm flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
-                  {error}
-                </p>
-              </div>
-            )}
 
             {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 disabled:from-blue-800 disabled:to-blue-900 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-200 shadow-xl hover:shadow-2xl disabled:shadow-lg disabled:opacity-50 flex items-center justify-center gap-3"
+              className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
             >
-              {isLoading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white/60 animate-spin rounded-full"></div>
-                  <span>جاري تسجيل الدخول...</span>
-                </>
-              ) : (
-                <>
-                  <User className="w-5 h-5" />
-                  <span>تسجيل الدخول</span>
-                </>
-              )}
+              {isLoading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
             </button>
           </form>
 
-          {/* Links */}
+          {/* Footer */}
           <div className="mt-6 text-center">
-            <Link href="/forgot-password" className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
-              نسيت كلمة المرور؟
-            </Link>
+            <p className="text-[#475569] text-sm">
+              تحتاج مساعدة؟{" "}
+              <Link href="#" className="text-blue-600 hover:text-blue-700 font-medium">
+                تواصل مع الدعم الفني
+              </Link>
+            </p>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-slate-500 text-sm">
-            © 2024 SmartAttend - جميع الحقوق محفوظة
+        {/* Copyright */}
+        <div className="text-center mt-8">
+          <p className="text-[#475569] text-xs">
+            © 2024 شركة الاتحاد - جميع الحقوق محفوظة
           </p>
         </div>
       </div>

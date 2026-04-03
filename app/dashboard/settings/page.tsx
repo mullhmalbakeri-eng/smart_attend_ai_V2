@@ -3,27 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { 
-  Building2, 
-  Clock, 
-  Save, 
-  Upload, 
-  AlertCircle, 
-  Settings as SettingsIcon,
-  Calendar,
-  Users,
-  FileText,
-  Download,
-  Shield,
-  Bell,
-  Globe,
-  Palette,
-  Activity,
-  FileBarChart
-} from "lucide-react";
+import { AnimatePresence } from "framer-motion";
+import { Building, Clock, AlertTriangle, Save, ArrowLeft } from "lucide-react";
 
 interface CompanySettings {
-  id: number;
   companyName: string;
   logoUrl: string | null;
   workStartTime: string;
@@ -33,45 +16,55 @@ interface CompanySettings {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [userRole, setUserRole] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  
   const [settings, setSettings] = useState<CompanySettings>({
-    id: 1,
-    companyName: "شركة الاتحاد",
+    companyName: '',
     logoUrl: null,
-    workStartTime: "08:00",
-    workEndTime: "16:00",
+    workStartTime: '09:00',
+    workEndTime: '17:00',
     gracePeriodMinutes: 15
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     // Check user role
-    const role = localStorage.getItem('userRole');
-    setUserRole(role || '');
-    
-    if (role !== 'ADMIN') {
-      router.push('/dashboard/scan');
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      setUserRole(user.role);
+      
+      // Redirect non-admin users
+      if (user.role !== 'ADMIN') {
+        router.push('/dashboard');
+        return;
+      }
+    } else {
+      router.push('/login');
       return;
     }
-    
-    // Load settings
-    loadSettings();
+
+    fetchSettings();
   }, [router]);
 
-  const loadSettings = async () => {
+  const fetchSettings = async () => {
     try {
       const response = await fetch('/api/company-settings');
       if (response.ok) {
         const data = await response.json();
         if (data.settings) {
-          setSettings(data.settings);
+          setSettings({
+            companyName: data.settings.companyName || '',
+            logoUrl: data.settings.logoUrl || null,
+            workStartTime: data.settings.workStartTime || '09:00',
+            workEndTime: data.settings.workEndTime || '17:00',
+            gracePeriodMinutes: data.settings.gracePeriodMinutes || 15
+          });
         }
       }
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      console.error('Error fetching settings:', error);
     } finally {
       setLoading(false);
     }
@@ -82,22 +75,77 @@ export default function SettingsPage() {
     setMessage(null);
     
     try {
-      const response = await fetch('/api/company-settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(settings),
-      });
+      console.log('Saving settings with payload:', settings);
+      
+      // Validate required fields
+      if (!settings.companyName.trim()) {
+        setMessage({ type: 'error', text: 'اسم الشركة مطلوب' });
+        return;
+      }
 
+      const payload = {
+        companyName: settings.companyName.trim(),
+        logoUrl: settings.logoUrl,
+        workStartTime: settings.workStartTime,
+        workEndTime: settings.workEndTime,
+        gracePeriodMinutes: parseInt(settings.gracePeriodMinutes.toString())
+      };
+
+      console.log('Final payload being sent:', payload);
+      
+      let response: Response;
+      try {
+        response = await fetch('/api/company-settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+      } catch (fetchError) {
+        console.error('Failed to reach settings API:', fetchError);
+        setMessage({ type: 'error', text: 'تعذر الاتصال بخدمة الإعدادات' });
+        return;
+      }
+
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
+        let data: unknown = {};
+        try {
+          data = await response.json();
+        } catch {
+          data = {};
+        }
+        console.log('Save response:', data);
         setMessage({ type: 'success', text: 'تم حفظ الإعدادات بنجاح!' });
       } else {
-        const error = await response.json();
-        setMessage({ type: 'error', text: error.message || 'فشل حفظ الإعدادات' });
+        let errorData: Record<string, unknown> = {};
+        try {
+          const parsed = await response.json();
+          if (parsed && typeof parsed === "object") {
+            errorData = parsed as Record<string, unknown>;
+          }
+        } catch {
+          errorData = {};
+        }
+        console.error('Save error response:', errorData);
+        
+        // Handle different error formats
+        let errorMessage = 'فشل حفظ الإعدادات';
+        if (typeof errorData.error === "string") {
+          errorMessage = errorData.error;
+        } else if (typeof errorData.details === "string") {
+          errorMessage = errorData.details;
+        } else if (typeof errorData.message === "string") {
+          errorMessage = errorData.message;
+        }
+        
+        setMessage({ type: 'error', text: errorMessage });
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'فشل حفظ الإعدادات' });
+      console.error('Network error:', error);
+      setMessage({ type: 'error', text: 'خطأ في الاتصال بالخادم' });
     } finally {
       setSaving(false);
     }
@@ -105,7 +153,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -115,397 +163,167 @@ export default function SettingsPage() {
     );
   }
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: "spring" as const,
-        stiffness: 100,
-        damping: 20
-      }
-    }
-  };
+  if (userRole !== 'ADMIN') {
+    return null; // Will redirect in useEffect
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-[#f8fafc] p-8">
       {/* Header */}
-      <motion.div
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="bg-white/80 backdrop-blur-lg border-b border-slate-200/50 sticky top-0 z-50"
-      >
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg"
-              >
-                <SettingsIcon className="w-6 h-6 text-white" />
-              </motion.div>
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                  الإعدادات
-                </h1>
-                <p className="text-slate-600">إدارة إعدادات الشركة والنظام المتقدمة</p>
-              </div>
-            </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-blue-800 disabled:to-blue-900 disabled:opacity-50 text-white font-medium rounded-lg flex items-center gap-2 transition-all shadow-lg"
-            >
-              {saving ? (
-                <>
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                  />
-                  جاري الحفظ...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  حفظ الإعدادات
-                </>
-              )}
-            </motion.button>
-          </div>
-        </div>
-      </motion.div>
+      <div className="mb-8">
+        <button
+          onClick={() => router.push('/dashboard')}
+          className="flex items-center gap-2 text-[#475569] hover:text-[#1e293b] transition-colors mb-4"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          العودة إلى لوحة التحكم
+        </button>
+        <h1 className="text-3xl font-bold text-[#1e293b] mb-2">الإعدادات</h1>
+        <p className="text-[#475569]">إدارة إعدادات الشركة والنظام</p>
+      </div>
 
       {/* Message */}
-      {message && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-7xl mx-auto px-6 pt-4"
-        >
-          <div className={`p-4 rounded-xl border flex items-center gap-3 ${
-            message.type === 'success' 
-              ? 'bg-green-50 border-green-200 text-green-800' 
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
-            <AlertCircle className="w-5 h-5" />
-            <span className="font-medium">{message.text}</span>
+      <AnimatePresence>
+        {message && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`mb-6 p-4 rounded-lg border ${
+              message.type === 'success' 
+                ? 'bg-green-50 border-green-200 text-green-800' 
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}
+          >
+            {message.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Settings Form */}
+      <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+        <div className="p-8">
+          <div className="space-y-8">
+            {/* Company Information */}
+            <div>
+              <div className="flex items-center gap-3 mb-6">
+                <Building className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl font-bold text-[#1e293b]">معلومات الشركة</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    اسم الشركة *
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.companyName}
+                    onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="أدخل اسم الشركة"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    رابط الشعار (اختياري)
+                  </label>
+                  <input
+                    type="url"
+                    value={settings.logoUrl || ''}
+                    onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value || null })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="https://example.com/logo.png"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Working Hours */}
+            <div>
+              <div className="flex items-center gap-3 mb-6">
+                <Clock className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl font-bold text-[#1e293b]">ساعات العمل</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    وقت بداية العمل
+                  </label>
+                  <input
+                    type="time"
+                    value={settings.workStartTime}
+                    onChange={(e) => setSettings({ ...settings, workStartTime: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    وقت نهاية العمل
+                  </label>
+                  <input
+                    type="time"
+                    value={settings.workEndTime}
+                    onChange={(e) => setSettings({ ...settings, workEndTime: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    فترة السماح (دقائق)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={settings.gracePeriodMinutes}
+                    onChange={(e) => setSettings({ ...settings, gracePeriodMinutes: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Warning */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                <div>
+                  <h3 className="font-medium text-amber-800 mb-1">ملاحظات هامة</h3>
+                  <ul className="text-sm text-amber-700 space-y-1">
+                    <li>• سيتم تطبيق هذه الإعدادات على جميع الموظفين</li>
+                    <li>• فترة السماح هي الوقت الإضافي المسموح به للتأخر</li>
+                    <li>• يمكن تعديل هذه الإعدادات في أي وقت</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
-        </motion.div>
-      )}
+        </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-        >
-          
-          {/* Company Identity Card */}
-          <motion.div
-            variants={itemVariants}
-            whileHover={{ scale: 1.02, y: -5 }}
-            className="lg:col-span-2 bg-white/80 backdrop-blur-lg rounded-3xl border border-slate-200/50 shadow-xl overflow-hidden"
-          >
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6">
-              <div className="flex items-center gap-3">
-                <motion.div
-                  whileHover={{ scale: 1.1, rotate: 360 }}
-                  transition={{ duration: 0.5 }}
-                  className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center"
-                >
-                  <Building2 className="w-5 h-5 text-white" />
-                </motion.div>
-                <h2 className="text-xl font-bold text-white">هوية الشركة</h2>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              
-              {/* Company Name Card */}
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="bg-slate-50 rounded-xl p-4 border border-slate-200"
-              >
-                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-3">
-                  <Building2 className="w-4 h-4 text-blue-600" />
-                  اسم الشركة
-                </label>
-                <motion.input
-                  whileFocus={{ scale: 1.02 }}
-                  type="text"
-                  value={settings.companyName}
-                  onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="أدخل اسم الشركة"
-                />
-              </motion.div>
-
-              {/* Logo URL Card */}
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="bg-slate-50 rounded-xl p-4 border border-slate-200"
-              >
-                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-3">
-                  <Upload className="w-4 h-4 text-blue-600" />
-                  رابط الشعار (اختياري)
-                </label>
-                <motion.input
-                  whileFocus={{ scale: 1.02 }}
-                  type="url"
-                  value={settings.logoUrl || ''}
-                  onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value || null })}
-                  className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="https://example.com/logo.png"
-                />
-              </motion.div>
-
-              {/* Logo Preview Card */}
-              {settings.logoUrl && (
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="bg-slate-50 rounded-xl p-4 border border-slate-200"
-                >
-                  <label className="text-sm font-semibold text-slate-700 mb-3">معاينة الشعار</label>
-                  <div className="w-24 h-24 border-2 border-dashed border-slate-300 rounded-xl overflow-hidden bg-white">
-                    <motion.img 
-                      src={settings.logoUrl} 
-                      alt="Company Logo" 
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                      whileHover={{ scale: 1.1 }}
-                      transition={{ duration: 0.2 }}
-                    />
-                  </div>
-                </motion.div>
-              )}
-
-            </div>
-          </motion.div>
-
-          {/* Work Schedule Card */}
-          <motion.div
-            variants={itemVariants}
-            whileHover={{ scale: 1.02, y: -5 }}
-            className="bg-white/80 backdrop-blur-lg rounded-3xl border border-slate-200/50 shadow-xl overflow-hidden"
-          >
-            <div className="bg-gradient-to-r from-green-500 to-green-600 p-6">
-              <div className="flex items-center gap-3">
-                <motion.div
-                  whileHover={{ scale: 1.1, rotate: 360 }}
-                  transition={{ duration: 0.5 }}
-                  className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center"
-                >
-                  <Clock className="w-5 h-5 text-white" />
-                </motion.div>
-                <h2 className="text-xl font-bold text-white">جدول العمل</h2>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              
-              {/* Work Start Time Card */}
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="bg-slate-50 rounded-xl p-4 border border-slate-200"
-              >
-                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-3">
-                  <Clock className="w-4 h-4 text-green-600" />
-                  وقت بدء العمل
-                </label>
-                <motion.input
-                  whileFocus={{ scale: 1.02 }}
-                  type="time"
-                  value={settings.workStartTime}
-                  onChange={(e) => setSettings({ ...settings, workStartTime: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                />
-              </motion.div>
-
-              {/* Work End Time Card */}
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="bg-slate-50 rounded-xl p-4 border border-slate-200"
-              >
-                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-3">
-                  <Clock className="w-4 h-4 text-green-600" />
-                  وقت نهاية العمل
-                </label>
-                <motion.input
-                  whileFocus={{ scale: 1.02 }}
-                  type="time"
-                  value={settings.workEndTime}
-                  onChange={(e) => setSettings({ ...settings, workEndTime: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                />
-              </motion.div>
-
-              {/* Grace Period Card */}
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="bg-slate-50 rounded-xl p-4 border border-slate-200"
-              >
-                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-3">
-                  <Clock className="w-4 h-4 text-green-600" />
-                  فترة السماح (دقائق)
-                </label>
-                <motion.input
-                  whileFocus={{ scale: 1.02 }}
-                  type="number"
-                  min="0"
-                  max="60"
-                  value={settings.gracePeriodMinutes}
-                  onChange={(e) => setSettings({ ...settings, gracePeriodMinutes: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                  placeholder="15"
-                />
-                <p className="text-xs text-slate-500 mt-2">الدقائق المسموحة بعد وقت بدء العمل قبل اعتبار الموظف متأخراً</p>
-              </motion.div>
-
-            </div>
-          </motion.div>
-
-        </motion.div>
-
-        {/* Info Cards */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6"
-        >
-          
-          {/* How It Works Card */}
-          <motion.div
-            variants={itemVariants}
-            whileHover={{ scale: 1.02, y: -5 }}
-            className="bg-white/80 backdrop-blur-lg rounded-3xl border border-slate-200/50 shadow-xl overflow-hidden"
-          >
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-6">
-              <div className="flex items-center gap-3">
-                <motion.div
-                  whileHover={{ scale: 1.1, rotate: 360 }}
-                  transition={{ duration: 0.5 }}
-                  className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center"
-                >
-                  <FileText className="w-5 h-5 text-white" />
-                </motion.div>
-                <h2 className="text-xl font-bold text-white">كيف تعمل هذه الإعدادات</h2>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600">
-                <div className="space-y-3">
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg"
-                  >
-                    <Clock className="w-4 h-4 text-purple-600 mt-1 flex-shrink-0" />
-                    <span><strong>وقت بدء العمل:</strong> الوقت المتوقع لوصول الموظفين</span>
-                  </motion.div>
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg"
-                  >
-                    <Clock className="w-4 h-4 text-purple-600 mt-1 flex-shrink-0" />
-                    <span><strong>فترة السماح:</strong> دقائق إضافية مسموحة قبل اعتبار الموظف متأخراً</span>
-                  </motion.div>
-                </div>
-                <div className="space-y-3">
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg"
-                  >
-                    <Shield className="w-4 h-4 text-purple-600 mt-1 flex-shrink-0" />
-                    <span><strong>مثال:</strong> إذا كان وقت البدء 8:00 صباحاً وفترة السماح 15 دقيقة، الموظفون الذين يصلون قبل 8:15 صباحاً سيتم اعتبارهم "في الوقت"</span>
-                  </motion.div>
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg"
-                  >
-                    <Bell className="w-4 h-4 text-purple-600 mt-1 flex-shrink-0" />
-                    <span><strong>كشف التأخير:</strong> يتم تطبيقه تلقائياً أثناء مسح الباركود</span>
-                  </motion.div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Statistics Card */}
-          <motion.div
-            variants={itemVariants}
-            whileHover={{ scale: 1.02, y: -5 }}
-            className="bg-white/80 backdrop-blur-lg rounded-3xl border border-slate-200/50 shadow-xl overflow-hidden"
-          >
-            <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-6">
-              <div className="flex items-center gap-3">
-                <motion.div
-                  whileHover={{ scale: 1.1, rotate: 360 }}
-                  transition={{ duration: 0.5 }}
-                  className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center"
-                >
-                  <Activity className="w-5 h-5 text-white" />
-                </motion.div>
-                <h2 className="text-xl font-bold text-white">الإحصائيات الحالية</h2>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="text-center p-4 bg-green-50 rounded-xl border border-green-200"
-                >
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                    <Clock className="w-6 h-6 text-green-600" />
-                  </div>
-                  <p className="text-sm text-slate-600 mb-1">وقت البدء</p>
-                  <p className="text-xl font-bold text-green-600">{settings.workStartTime}</p>
-                </motion.div>
-                
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="text-center p-4 bg-blue-50 rounded-xl border border-blue-200"
-                >
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                    <Clock className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <p className="text-sm text-slate-600 mb-1">وقت النهاية</p>
-                  <p className="text-xl font-bold text-blue-600">{settings.workEndTime}</p>
-                </motion.div>
-                
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="text-center p-4 bg-yellow-50 rounded-xl border border-yellow-200"
-                >
-                  <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                    <Clock className="w-6 h-6 text-yellow-600" />
-                  </div>
-                  <p className="text-sm text-slate-600 mb-1">فترة السماح</p>
-                  <p className="text-xl font-bold text-yellow-600">{settings.gracePeriodMinutes} دقيقة</p>
-                </motion.div>
-              </div>
-            </div>
-          </motion.div>
-
-        </motion.div>
+        {/* Actions */}
+        <div className="border-t border-slate-200 p-6">
+          <div className="flex justify-end gap-4">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="px-6 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              إلغاء
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              <Save className="w-4 h-4" />
+              {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

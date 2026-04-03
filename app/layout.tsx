@@ -3,8 +3,8 @@ import "./globals.css"
 import { ToastProvider } from "@/components/ui/toast"
 
 export const metadata: Metadata = {
-  title: "Smart Attend AI",
-  description: "AI-powered attendance system",
+  title: "Smart Attend AI - شركة الاتحاد",
+  description: "AI-powered attendance system for Etihad Company",
 }
 
 export default function RootLayout({
@@ -13,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html dir="rtl" lang="ar">
-      <body className="antialiased bg-white text-black font-sans">
+    <html dir="rtl" lang="ar" className="bg-[#f8fafc] text-slate-900">
+      <body className="antialiased bg-[#f8fafc] text-slate-900 font-sans">
         <ToastProvider>
           {children}
         </ToastProvider>

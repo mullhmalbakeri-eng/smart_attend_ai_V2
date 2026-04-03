@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 export async function GET() {
   try {
@@ -21,6 +23,9 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     console.log('Company Settings API - Updating settings:', data);
+
+    // Check if user has admin permissions (you might want to add proper auth here)
+    // For now, we'll proceed without auth check as requested
 
     // Check if settings exist
     const existingSettings = await prisma.companySettings.findFirst({
@@ -63,8 +68,12 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Failed to save company settings:', error);
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
-      { error: 'Failed to save settings' },
+      { 
+        error: 'Failed to save settings',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

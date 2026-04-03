@@ -1,18 +1,47 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
-import Link from "next/link";
+import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { 
-  LayoutDashboard, 
   Users, 
-  QrCode, 
-  ClipboardList,
-  Settings,
-  LogOut,
-  Menu,
-  X
-} from "lucide-react";
+  FileText, 
+  Settings, 
+  LogOut, 
+  LayoutDashboard,
+  UserCheck
+} from 'lucide-react';
+
+const menuItems = [
+  {
+    name: 'الموظفين',
+    description: 'إدارة الموظفين والصلاحيات',
+    href: '/dashboard/users',
+    icon: Users,
+    adminOnly: true
+  },
+  {
+    name: 'سجل الحضور',
+    description: 'سجل الحضور والانصراف',
+    href: '/dashboard/attendance',
+    icon: UserCheck,
+    adminOnly: false
+  },
+  {
+    name: 'التقارير',
+    description: 'عرض التقارير والإحصائيات',
+    href: '/dashboard/reports',
+    icon: FileText,
+    adminOnly: false
+  },
+  {
+    name: 'الإعدادات',
+    description: 'إعدادات النظام',
+    href: '/dashboard/settings',
+    icon: Settings,
+    adminOnly: true
+  }
+];
 
 interface SidebarProps {
   isOpen: boolean;
@@ -21,62 +50,36 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const pathname = usePathname();
-  const [userRole, setUserRole] = useState<string>("");
+  const [mounted, setMounted] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole') || "";
-    setUserRole(role.toUpperCase());
+    setMounted(true);
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        setUserRole(user.role);
+      } catch (error) {
+        console.error('Failed to parse user data:', error);
+      }
+    }
   }, []);
 
-  // Hide sidebar completely for employees (not admins)
-  if (userRole && userRole !== "ADMIN") {
-    return null;
+  // Don't render until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <aside className="fixed top-0 right-0 h-full w-72 bg-[#1e293b] z-50">
+        <div className="flex items-center justify-center h-full">
+          <div className="text-white">Loading...</div>
+        </div>
+      </aside>
+    );
   }
-
-  const menuItems = [
-    { 
-      name: "لوحة التحكم", 
-      href: "/dashboard", 
-      icon: LayoutDashboard,
-      description: "نظرة عامة على الإحصائيات"
-    },
-    { 
-      name: "إدارة الموظفين", 
-      href: "/dashboard/users", 
-      icon: Users,
-      description: "إدارة بيانات الموظفين"
-    },
-    { 
-      name: "شاشة الحضور الحية", 
-      href: "/dashboard/live-monitor", 
-      icon: QrCode,
-      description: "عرض الباركود المباشر"
-    },
-    { 
-      name: "سجل التقارير", 
-      href: "/dashboard/reports", 
-      icon: ClipboardList,
-      description: "تقارير الحضور والانصراف"
-    },
-    { 
-      name: "الإعدادات", 
-      href: "/dashboard/settings", 
-      icon: Settings,
-      description: "إعدادات النظام والشركة"
-    },
-  ];
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        onClick={onToggle}
-        className="lg:hidden fixed top-4 right-4 z-50 p-2 bg-slate-800 rounded-lg border border-slate-700 hover:bg-slate-700 transition-colors"
-      >
-        {isOpen ? <X className="w-6 h-6 text-white" /> : <Menu className="w-6 h-6 text-white" />}
-      </button>
-
-      {/* Sidebar Overlay */}
+      {/* Sidebar Overlay for mobile */}
       {isOpen && (
         <div 
           className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
@@ -84,23 +87,23 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Single Sidebar - Right Side with ODOO Deep Navy */}
       <aside className={`
-        fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-slate-900 to-slate-950 border-l border-slate-800 z-50
+        fixed top-0 right-0 h-full w-72 bg-[#1e293b] z-50
         transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}
         lg:translate-x-0 lg:static lg:z-0
       `}>
         
-        {/* Sidebar Header */}
-        <div className="p-6 border-b border-slate-800">
+        {/* Sidebar Header - شركة الاتحاد Branding */}
+        <div className="p-6 border-b border-slate-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
               <LayoutDashboard className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">نظام الحضور</h2>
-              <p className="text-sm text-slate-400">Smart Attendance</p>
+              <h2 className="text-lg font-bold text-white">شركة الاتحاد</h2>
+              <p className="text-sm text-slate-400">Smart Attend AI</p>
             </div>
           </div>
         </div>
@@ -112,8 +115,13 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
               const isActive = pathname === item.href;
               const Icon = item.icon;
               
+              // RBAC: Hide admin-only items for non-admin users
+              if (item.adminOnly && userRole !== "ADMIN") {
+                return null;
+              }
+              
               return (
-                <li key={item.href}>
+                <li key={item.name}>
                   <Link
                     href={item.href}
                     onClick={() => {
@@ -124,8 +132,8 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
                     className={`
                       flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200
                       ${isActive 
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25' 
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        ? 'bg-blue-600 text-white shadow-lg' 
+                        : 'text-slate-300 hover:bg-slate-700 hover:text-white'
                       }
                     `}
                   >
@@ -133,7 +141,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
                       w-10 h-10 rounded-lg flex items-center justify-center
                       ${isActive 
                         ? 'bg-white/20' 
-                        : 'bg-slate-800/50'
+                        : 'bg-slate-600'
                       }
                     `}>
                       <Icon className="w-5 h-5" />
@@ -149,11 +157,20 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
           </ul>
         </nav>
 
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-slate-800">
+        {/* Sidebar Footer - User Profile */}
+        <div className="p-4 border-t border-slate-700">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center">
+              <span className="text-sm font-medium text-white">A</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-white">مدير النظام</p>
+              <p className="text-xs text-slate-400">admin@etihad.com</p>
+            </div>
+          </div>
           <Link
             href="/login"
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-red-400 transition-all duration-200"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-700 hover:text-white transition-all duration-200"
           >
             <LogOut className="w-5 h-5" />
             <span>تسجيل الخروج</span>

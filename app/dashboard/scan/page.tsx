@@ -272,27 +272,27 @@ export default function EmployeeScanPage() {
   };
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white ${isMobile ? 'pb-20' : 'p-6'}`} style={{ fontFamily: "Cairo, Tajawal, sans-serif" }}>
-      {/* Mobile-optimized Header */}
-      <header className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-800 sticky top-0 z-40">
+    <div className={`min-h-screen bg-[#f8fafc] text-slate-900 ${isMobile ? 'pb-20' : 'p-6'}`} style={{ fontFamily: "Cairo, Tajawal, sans-serif" }}>
+      {/* Header */}
+      <header className="bg-white border border-slate-200 rounded-lg shadow-sm">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                <User className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-white">{companyName}</h1>
-                <p className="text-xs text-slate-400">نظام الحضور الذكي</p>
+                <h1 className="text-lg font-bold text-[#1e293b]">{companyName}</h1>
+                <p className="text-xs text-slate-500">نظام الحضور الذكي</p>
               </div>
             </div>
             
             <Link
               href="/login"
-              className="flex items-center gap-2 px-3 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/50 rounded-xl transition-all duration-200"
+              className="flex items-center gap-2 px-3 py-2 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-all duration-200"
             >
-              <ArrowRight className="w-4 h-4 text-red-400" />
-              <span className="text-red-400 text-sm">خروج</span>
+              <ArrowRight className="w-4 h-4 text-red-600" />
+              <span className="text-red-600 text-sm">خروج</span>
             </Link>
           </div>
         </div>
@@ -300,37 +300,37 @@ export default function EmployeeScanPage() {
 
       {/* Success Message */}
       {showSuccess && (
-        <div className="m-4 bg-green-600/20 backdrop-blur-sm border-2 border-green-500/50 rounded-3xl p-6 text-center">
+        <div className="m-4 bg-white border border-green-200 rounded-3xl p-6 text-center shadow-sm">
           <div className="flex items-center justify-center gap-4 mb-4">
-            <CheckCircle className="w-12 h-12 text-green-400" />
+            <CheckCircle className="w-12 h-12 text-green-600" />
             <div className="text-right">
-              <h2 className="text-2xl font-bold text-green-300 mb-2">تم تسجيل الحضور بنجاح!</h2>
-              <p className="text-lg text-green-200">مرحباً بك يا {employeeName}</p>
-              <p className="text-md text-green-300 mt-2">الوقت: {scanTime}</p>
+              <h2 className="text-2xl font-bold text-green-700 mb-2">تم تسجيل الحضور بنجاح!</h2>
+              <p className="text-lg text-green-700">مرحباً بك يا {employeeName}</p>
+              <p className="text-md text-green-600 mt-2">الوقت: {scanTime}</p>
             </div>
           </div>
-          <div className="bg-green-500/20 rounded-xl p-4">
-            <p className="text-green-300 text-sm">تم تسجيل حضورك بنجاح في النظام</p>
+          <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+            <p className="text-green-700 text-sm">تم تسجيل حضورك بنجاح في النظام</p>
           </div>
         </div>
       )}
 
       {/* Main Content - Full Screen on Mobile */}
       <div className={`${isMobile ? 'px-4 py-6' : 'max-w-4xl mx-auto p-8'}`}>
-        <div className="bg-slate-800/30 backdrop-blur-sm rounded-3xl p-6 border border-slate-700">
+        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
           <div className="text-center mb-6">
-            <h2 className={`font-bold text-white mb-4 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>مسح الباركود</h2>
-            <p className="text-slate-300 text-sm">استخدم الكاميرا لتسجيل الحضور</p>
+            <h2 className={`font-bold text-slate-900 mb-4 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>مسح الباركود</h2>
+            <p className="text-slate-600 text-sm">استخدم الكاميرا لتسجيل الحضور</p>
           </div>
 
           {/* Camera Permission Status */}
           {cameraPermission === 'denied' && (
-            <div className="mb-6 bg-red-600/20 backdrop-blur-sm border-2 border-red-500/50 rounded-xl p-4">
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
               <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-red-400" />
+                <AlertCircle className="w-5 h-5 text-red-600" />
                 <div>
-                  <p className="text-red-300 font-medium">إذن الكاميرا مرفوض</p>
-                  <p className="text-red-400 text-sm">يرجى تفعيل إذن الكاميرا من إعدادات المتصفح</p>
+                  <p className="text-red-700 font-medium">إذن الكاميرا مرفوض</p>
+                  <p className="text-red-600 text-sm">يرجى تفعيل إذن الكاميرا من إعدادات المتصفح</p>
                 </div>
               </div>
             </div>
@@ -338,7 +338,7 @@ export default function EmployeeScanPage() {
 
           {/* Email Validation Section */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               البريد الإلكتروني
             </label>
             <input
@@ -350,13 +350,13 @@ export default function EmployeeScanPage() {
               }}
               onBlur={(e) => validateEmail(e.target.value)}
               placeholder="example@company.com"
-              className={`w-full px-4 py-3 bg-slate-700/50 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 ${
-                emailError ? 'border-red-500/50' : 'border-slate-600/50'
+              className={`w-full px-4 py-3 bg-white border rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                emailError ? 'border-red-300' : 'border-slate-200'
               }`}
               dir="ltr"
             />
             {emailError && (
-              <p className="mt-2 text-sm text-red-400 flex items-center gap-2">
+              <p className="mt-2 text-sm text-red-600 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
                 {emailError}
               </p>
@@ -391,12 +391,12 @@ export default function EmployeeScanPage() {
         </div>
 
         {/* Mobile-optimized Instructions */}
-        <div className="mt-6 bg-slate-800/30 backdrop-blur-sm rounded-3xl p-6 border border-slate-700">
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-amber-400" />
+        <div className="mt-6 bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+          <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-amber-600" />
             تعليمات المسح
           </h3>
-          <ul className="space-y-3 text-slate-300 text-sm">
+          <ul className="space-y-3 text-slate-700 text-sm">
             <li className="flex items-start gap-3">
               <span className="text-blue-400">1.</span>
               <span>تأكد من وجود إضاءة جيدة</span>

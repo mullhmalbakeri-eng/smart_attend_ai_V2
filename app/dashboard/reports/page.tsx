@@ -131,22 +131,24 @@ export default function ReportsPage() {
   const handleExportCSV = async () => {
     try {
       setExporting(true);
-      const response = await fetch('/api/attendance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          format: 'csv',
-          date: selectedDate
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to export CSV');
-      }
-
-      const blob = await response.blob();
+      const headers = ["اسم الموظف", "البريد الإلكتروني", "القسم", "التاريخ", "الوقت", "نوع الحضور", "الحالة"];
+      const csvRows = [
+        [companyName],
+        [`تقرير الحضور - ${new Date(selectedDate).toLocaleDateString("ar-SA")}`],
+        [],
+        headers,
+        ...records.map((record) => [
+          record.user.name,
+          record.user.email,
+          record.user.department?.name || "غير محدد",
+          record.formattedDate,
+          record.time,
+          record.type === "IN" ? "دخول" : "خروج",
+          record.statusBadge.text,
+        ]),
+      ];
+      const csv = "\ufeff" + csvRows.map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       
       // Create download link with UTF-8 BOM
       const url = window.URL.createObjectURL(blob);
@@ -232,7 +234,7 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -243,24 +245,24 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-[#f8fafc]">
       {/* Header */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="bg-white/80 backdrop-blur-lg border-b border-slate-200/50 sticky top-0 z-50"
+        className="bg-white border border-slate-200 rounded-lg shadow-sm"
       >
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <motion.div
                 whileHover={{ scale: 1.05 }}
-                className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg"
+                className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"
               >
                 <FileText className="w-6 h-6 text-white" />
               </motion.div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                <h1 className="text-3xl font-bold text-slate-900">
                   تقارير الحضور
                 </h1>
                 <p className="text-slate-600">عرض وتصدير سجلات الحضور المتقدمة</p>
@@ -286,7 +288,7 @@ export default function ReportsPage() {
                 whileTap={{ scale: 0.95 }}
                 onClick={handleExportCSV}
                 disabled={exporting}
-                className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-green-800 disabled:to-green-900 disabled:opacity-50 text-white font-medium rounded-lg flex items-center gap-2 transition-all shadow-lg"
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-800 disabled:opacity-50 text-white font-medium rounded-lg flex items-center gap-2 transition-all"
               >
                 {exporting ? (
                   <>
@@ -315,18 +317,18 @@ export default function ReportsPage() {
           variants={itemVariants}
           initial="hidden"
           animate="visible"
-          className="bg-white/80 backdrop-blur-lg rounded-3xl border border-slate-200/50 shadow-xl p-8 mb-6"
+          className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 mb-6"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <motion.div
                 whileHover={{ scale: 1.1 }}
-                className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg"
+                className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center"
               >
                 <Building2 className="w-8 h-8 text-white" />
               </motion.div>
               <div>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                <h2 className="text-2xl font-bold text-slate-900">
                   {companyName}
                 </h2>
                 <p className="text-slate-600">تقرير الحضور اليومي - {new Date(selectedDate).toLocaleDateString('ar-SA')}</p>
@@ -352,19 +354,19 @@ export default function ReportsPage() {
           <motion.div
             variants={itemVariants}
             whileHover={{ scale: 1.02, y: -5 }}
-            className="bg-white/80 backdrop-blur-lg rounded-2xl border border-slate-200/50 shadow-xl p-6"
+            className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6"
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 mb-1">إجمالي السجلات</p>
-                <p className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                <p className="text-3xl font-bold text-slate-900">
                   {summary.total}
                 </p>
               </div>
               <motion.div
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
-                className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg"
+                className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"
               >
                 <Users className="w-6 h-6 text-white" />
               </motion.div>
@@ -378,7 +380,7 @@ export default function ReportsPage() {
           <motion.div
             variants={itemVariants}
             whileHover={{ scale: 1.02, y: -5 }}
-            className="bg-white/80 backdrop-blur-lg rounded-2xl border border-slate-200/50 shadow-xl p-6"
+            className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -388,7 +390,7 @@ export default function ReportsPage() {
               <motion.div
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
-                className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg"
+                className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center"
               >
                 <CheckCircle className="w-6 h-6 text-white" />
               </motion.div>
@@ -402,7 +404,7 @@ export default function ReportsPage() {
           <motion.div
             variants={itemVariants}
             whileHover={{ scale: 1.02, y: -5 }}
-            className="bg-white/80 backdrop-blur-lg rounded-2xl border border-slate-200/50 shadow-xl p-6"
+            className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -412,7 +414,7 @@ export default function ReportsPage() {
               <motion.div
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
-                className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl flex items-center justify-center shadow-lg"
+                className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center"
               >
                 <AlertTriangle className="w-6 h-6 text-white" />
               </motion.div>
@@ -426,7 +428,7 @@ export default function ReportsPage() {
           <motion.div
             variants={itemVariants}
             whileHover={{ scale: 1.02, y: -5 }}
-            className="bg-white/80 backdrop-blur-lg rounded-2xl border border-slate-200/50 shadow-xl p-6"
+            className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -436,7 +438,7 @@ export default function ReportsPage() {
               <motion.div
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
-                className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg"
+                className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"
               >
                 <LogOut className="w-6 h-6 text-white" />
               </motion.div>
@@ -450,7 +452,7 @@ export default function ReportsPage() {
           <motion.div
             variants={itemVariants}
             whileHover={{ scale: 1.02, y: -5 }}
-            className="bg-white/80 backdrop-blur-lg rounded-2xl border border-slate-200/50 shadow-xl p-6"
+            className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -460,7 +462,7 @@ export default function ReportsPage() {
               <motion.div
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
-                className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg"
+                className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center"
               >
                 <XCircle className="w-6 h-6 text-white" />
               </motion.div>
@@ -477,10 +479,10 @@ export default function ReportsPage() {
           variants={itemVariants}
           initial="hidden"
           animate="visible"
-          className="bg-white/80 backdrop-blur-lg rounded-3xl border border-slate-200/50 shadow-xl overflow-hidden"
+          className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden"
         >
-          <div className="p-6 border-b border-slate-200/50">
-            <h3 className="text-xl font-semibold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent flex items-center gap-2">
+          <div className="p-6 border-b border-slate-200">
+            <h3 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
               <Calendar className="w-6 h-6 text-blue-600" />
               سجلات الحضور المتقدمة
             </h3>
@@ -488,7 +490,7 @@ export default function ReportsPage() {
           
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50/50 border-b border-slate-200/50">
+              <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">الموظف</th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">القسم</th>
@@ -498,7 +500,7 @@ export default function ReportsPage() {
                   <th className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">الحالة</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200/50">
+              <tbody className="divide-y divide-slate-200">
                 <AnimatePresence>
                   {records.map((record, index) => (
                     <motion.tr

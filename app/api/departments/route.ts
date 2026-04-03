@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 export async function GET() {
   try {
     const departments = await prisma.department.findMany({
-      include: { _count: { select: { users: true } } },
+      include: { _count: { select: { employees: true } } },
     });
     const result = departments.map((d) => ({
       id: d.id,
       name: d.name,
-      manager: d.manager,
       _count: d._count,
     }));
     return NextResponse.json(result, {
@@ -34,7 +35,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, manager } = body;
+    const { name } = body;
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json(
@@ -45,20 +46,10 @@ export async function POST(req: Request) {
         }
       );
     }
-    if (!manager || typeof manager !== "string" || !manager.trim()) {
-      return NextResponse.json(
-        { error: "Manager is required" },
-        { 
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
 
     const department = await prisma.department.create({
       data: {
         name: name.trim(),
-        manager: manager.trim(),
       },
     });
     return NextResponse.json(department);

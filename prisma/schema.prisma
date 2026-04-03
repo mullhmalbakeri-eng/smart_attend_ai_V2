@@ -7,52 +7,37 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-enum Role {
-  ADMIN
-  HR
-  EMPLOYEE
-  admin
-  employee
-}
-
-model User {
-  id           Int      @id @default(autoincrement())
-  uuid         String   @unique @default(uuid())
-  name         String
-  email        String   @unique
-  password     String   @default("123456") // أضف هذا السطر تحديداً
-  role         String   @default("EMPLOYEE")
-  departmentId Int
-  department   Department? @relation(fields: [departmentId], references: [id])
-  attendances  Attendance[]
-  image        String?
-  createdAt    DateTime @default(now())
+model Employee {
+  id            Int          @id @default(autoincrement())
+  email         String       @unique
+  name          String
+  password      String
+  role          String       @default("EMPLOYEE")
+  departmentId  Int
+  department    Department   @relation(fields: [departmentId], references: [id])
+  attendances   Attendance[]
+  createdAt     DateTime     @default(now())
 }
 
 model Department {
-  id        Int      @id @default(autoincrement())
-  name      String
-  manager   String
-  users     User[]
-  createdAt DateTime @default(now())
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  employees Employee[]
 }
 
 model Attendance {
-  id        Int      @id @default(autoincrement())
-  timestamp DateTime @default(now())
-  type      String
-  status    String?  @default("ON_TIME") // ON_TIME, LATE, EARLY_OUT
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
+  id         Int      @id @default(autoincrement())
+  date       DateTime @default(now())
+  timestamp  DateTime @default(now())
+  type       String   // 'IN' | 'OUT'
+  status     String
+  employeeId Int
+  employee   Employee @relation(fields: [employeeId], references: [id])
 }
 
 model CompanySettings {
-  id                  Int      @id @default(autoincrement())
-  companyName         String   @default("Smart Attend AI")
-  logoUrl             String?
-  workStartTime       String   @default("09:00") // HH:mm format
-  workEndTime         String   @default("17:00") // HH:mm format
-  gracePeriodMinutes  Int      @default(15) // Minutes after work start to consider as late
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                String   @id @default(cuid())
+  companyName       String   @default("شركة الاتحاد")
+  qrRefreshInterval Int      @default(30)
+  createdAt         DateTime @default(now())
 }

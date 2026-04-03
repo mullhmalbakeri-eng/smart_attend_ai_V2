@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 export async function GET() {
   try {
@@ -8,10 +10,10 @@ export async function GET() {
     today.setHours(0, 0, 0, 0);
 
     // Fetch real-time attendance stats from database
-    const totalEmployees = await prisma.user.count();
+    const totalEmployees = await prisma.employee.count();
     
     const presentToday = await prisma.attendance.groupBy({
-      by: ['userId'],
+      by: ['employeeId'],
       where: {
         timestamp: {
           gte: today
@@ -20,27 +22,27 @@ export async function GET() {
       }
     }).then(result => result.length);
     
-    // Get present user IDs
-    const presentUserIds = await prisma.attendance.groupBy({
-      by: ['userId'],
+    // Get present employee IDs
+    const presentEmployeeIds = await prisma.attendance.groupBy({
+      by: ['employeeId'],
       where: {
         timestamp: {
           gte: today
         },
         type: 'IN'
       }
-    }).then(result => result.map(r => r.userId));
+    }).then(result => result.map(r => r.employeeId));
     
-    const absentToday = await prisma.user.count({
+    const absentToday = await prisma.employee.count({
       where: {
         id: {
-          notIn: presentUserIds
+          notIn: presentEmployeeIds
         }
       }
     });
     
     const lateToday = await prisma.attendance.groupBy({
-      by: ['userId'],
+      by: ['employeeId'],
       where: {
         timestamp: {
           gte: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 0, 0, 0)
@@ -56,7 +58,7 @@ export async function GET() {
         }
       },
       include: {
-        user: {
+        employee: {
           include: {
             department: true
           }
@@ -73,8 +75,8 @@ export async function GET() {
       lateToday,
       recentCheckIns: recentCheckIns.map((record: any) => ({
         id: record.id,
-        userName: record.user.name,
-        department: record.user.department?.name || 'Unknown',
+        userName: record.employee.name,
+        department: record.employee.department?.name || 'Unknown',
         time: record.timestamp.toLocaleTimeString('ar-EG', { 
           hour: '2-digit', 
           minute: '2-digit' 

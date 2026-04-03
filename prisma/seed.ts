@@ -6,151 +6,129 @@ async function main() {
   console.log('🌱 Starting database seeding...');
 
   try {
-    // Create departments first
-    console.log('🏢 Creating departments...');
-    const hrDept = await prisma.department.upsert({
-      where: { id: 1 },
-      update: {},
-      create: { id: 1, name: "HR", manager: "Ali" }
-    });
+    // Delete all existing records first
+    console.log('🗑️ Purging existing data...');
+    await prisma.attendance.deleteMany({});
+    await prisma.employee.deleteMany({});
+    await prisma.department.deleteMany({});
+    console.log('✅ Database purged successfully');
 
-    const itDept = await prisma.department.upsert({
-      where: { id: 2 },
-      update: {},
-      create: { id: 2, name: "IT", manager: "Sara" }
-    });
+    // Create departments for Etihad Company
+    console.log('🏢 Creating Etihad Company departments...');
+    const departments = [
+      { id: 1, name: "الموارد البشرية" },
+      { id: 2, name: "تقنية المعلومات" },
+      { id: 3, name: "المالية والمحاسبة" },
+      { id: 4, name: "التسويق والمبيعات" },
+      { id: 5, name: "العمليات والخدمات" }
+    ];
 
+    for (const dept of departments) {
+      await prisma.department.create({ data: dept });
+    }
     console.log('✅ Departments created');
 
-    // Create test users with password using raw SQL
-    console.log('👥 Creating/updating test users...');
-
-    // Admin user
-    const adminUser = await prisma.user.upsert({
-      where: { email: 'admin@test.com' },
-      update: { 
-        name: 'Administrator',
-        role: 'ADMIN',
-        departmentId: itDept.id
-      },
-      create: {
-        email: 'admin@test.com',
-        role: 'ADMIN',
-        name: 'Administrator',
-        uuid: 'admin-uuid-' + Date.now(),
-        departmentId: itDept.id
-      }
-    });
-
-    console.log('✅ Admin user created/updated:', adminUser.email);
-
-    // Employee user
-    const employeeUser = await prisma.user.upsert({
-      where: { email: 'employee@test.com' },
-      update: { 
-        name: 'Test Employee',
-        role: 'EMPLOYEE',
-        departmentId: hrDept.id
-      },
-      create: {
-        email: 'employee@test.com',
-        role: 'EMPLOYEE',
-        name: 'Test Employee',
-        uuid: 'employee-uuid-' + Date.now(),
-        departmentId: hrDept.id
-      }
-    });
-
-    console.log('✅ Employee user created/updated:', employeeUser.email);
-
-    // Update the existing admin user (mullhm200231@gmail.com)
-    const existingAdmin = await prisma.user.upsert({
-      where: { email: 'mullhm200231@gmail.com' },
-      update: { 
-        name: 'Main Admin',
-        role: 'ADMIN',
-        departmentId: itDept.id
-      },
-      create: {
-        email: 'mullhm200231@gmail.com',
-        role: 'ADMIN',
-        name: 'Main Admin',
-        uuid: 'main-admin-uuid-' + Date.now(),
-        departmentId: itDept.id
-      }
-    });
-
-    console.log('✅ Main admin user created/updated:', existingAdmin.email);
-
-    // Create the original users from the old seed
-    const ahmadUser = await prisma.user.upsert({
-      where: { email: "ahmad@company.com" },
-      update: { 
-        role: 'ADMIN'
-      },
-      create: {
-        name: "Ahmad",
-        email: "ahmad@company.com",
-        role: "ADMIN",
-        departmentId: itDept.id,
-        uuid: 'ahmad-uuid-' + Date.now()
-      }
-    });
-
-    const saraUser = await prisma.user.upsert({
-      where: { email: "sara@company.com" },
-      update: { 
-        role: 'EMPLOYEE'
-      },
-      create: {
-        name: "Sara",
-        email: "sara@company.com",
+    // Create 10 professional employees for Etihad Company
+    console.log('👥 Creating 10 Etihad Company employees...');
+    const employees = [
+      {
+        name: "أحمد محمد السعيد",
+        email: "ahmed.saeed@etihad.com",
         role: "EMPLOYEE",
-        departmentId: hrDept.id,
-        uuid: 'sara-uuid-' + Date.now()
+        departmentId: 1,
+        password: "123456"
+      },
+      {
+        name: "فاطمة علي حسن",
+        email: "fatima.ali@etihad.com",
+        role: "EMPLOYEE",
+        departmentId: 2,
+        password: "123456"
+      },
+      {
+        name: "خالد عبدالله الرشيد",
+        email: "khalid.rashid@etihad.com",
+        role: "EMPLOYEE",
+        departmentId: 3,
+        password: "123456"
+      },
+      {
+        name: "مريم أحمد خالد",
+        email: "mariam.ahmed@etihad.com",
+        role: "EMPLOYEE",
+        departmentId: 4,
+        password: "123456"
+      },
+      {
+        name: "عبدالرحيم إبراهيم",
+        email: "abdulrahim.ibrahim@etihad.com",
+        role: "EMPLOYEE",
+        departmentId: 5,
+        password: "123456"
+      },
+      {
+        name: "نورة محمد سالم",
+        email: "nora.mohammed@etihad.com",
+        role: "EMPLOYEE",
+        departmentId: 1,
+        password: "123456"
+      },
+      {
+        name: "يوسف عبدالله أحمد",
+        email: "yousef.abdullah@etihad.com",
+        role: "EMPLOYEE",
+        departmentId: 2,
+        password: "123456"
+      },
+      {
+        name: "هناء علي محمود",
+        email: "hanan.ali@etihad.com",
+        role: "EMPLOYEE",
+        departmentId: 3,
+        password: "123456"
+      },
+      {
+        name: "عمر حسن خالد",
+        email: "omar.hassan@etihad.com",
+        role: "EMPLOYEE",
+        departmentId: 4,
+        password: "123456"
+      },
+      {
+        name: "ليلى محمد إبراهيم",
+        email: "laila.mohammed@etihad.com",
+        role: "EMPLOYEE",
+        departmentId: 5,
+        password: "123456"
       }
+    ];
+
+    for (const emp of employees) {
+      await prisma.employee.create({ data: emp });
+    }
+    console.log('✅ 10 Etihad Company employees created');
+
+    console.log('\n🎉 Etihad Company database seeding completed successfully!');
+    console.log('\n📊 Summary:');
+    console.log(`   🏢 Departments: ${departments.length}`);
+    console.log(`   👥 Employees: ${employees.length}`);
+    console.log(`   🏢 Company: Etihad Company`);
+    
+    console.log('\n🔐 Login credentials for testing:');
+    employees.forEach((emp, index) => {
+      console.log(`   ${index + 1}. ${emp.name}: ${emp.email} / 123456`);
     });
-
-    // Update all users to have password using raw SQL
-    console.log('🔄 Updating all users with password...');
-    await prisma.$executeRaw`UPDATE User SET password = '123456' WHERE password IS NULL OR password = ''`;
-    console.log('✅ All users updated with password');
-
-    // Display all users
-    const allUsers = await prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true
-      }
-    });
-
-    console.log('\n📋 All users in database:');
-    allUsers.forEach(user => {
-      console.log(`   👤 ${user.email} (${user.role}) - ${user.name}`);
-    });
-
-    console.log('\n🎉 Database seeding completed successfully!');
-    console.log('\n🔐 Login credentials:');
-    console.log('   🚀 Admin: admin@test.com / 123456');
-    console.log('   🚛️  Employee: employee@test.com / 123456');
-    console.log('   🚀 Main Admin: mullhm200231@gmail.com / 123456');
-    console.log('   🚀 Ahmad: ahmad@company.com / 123456');
-    console.log('   🚛️  Sara: sara@company.com / 123456');
 
   } catch (error) {
     console.error('❌ Error during seeding:', error);
     throw error;
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seeding failed:', e);
+    console.error(e);
     process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
   });

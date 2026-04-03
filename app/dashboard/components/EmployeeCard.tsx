@@ -1,13 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { User } from "@/types";
+import { User, Employee } from "@/types";
 import { useToast } from "@/components/ui/toast";
 import { X, Download, Printer, Shield, Calendar, Building2, Mail, Sparkles, Loader2 } from "lucide-react";
 import html2canvas from "html2canvas";
 
 interface EmployeeCardProps {
-  user: User | null;
+  user: Employee | null;
   isOpen: boolean;
   onClose: () => void;
 }
