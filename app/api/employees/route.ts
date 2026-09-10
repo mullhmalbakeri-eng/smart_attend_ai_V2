@@ -17,19 +17,89 @@ export async function GET() {
 // إضافة موظف جديد
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const data = await req.json();
+    console.log("Incoming Data:", data);
+    const departmentId = Number(data.departmentId);
+    if (!data?.name || !data?.email || !departmentId) {
+      return NextResponse.json(
+        { error: "name, email, and departmentId are required" },
+        { status: 400 }
+      );
+    }
+
     const employee = await prisma.employee.create({
       data: {
-        name: body.name,
-        email: body.email,
-        password: body.password || '123456',
-        role: body.role || 'EMPLOYEE',
-        departmentId: body.departmentId,
-      }
+        name: data.name,
+        email: data.email,
+        password: data.password || '123456',
+        role: data.role || 'EMPLOYEE',
+        departmentId,
+      },
+      include: { department: true }
     });
     return NextResponse.json(employee, { status: 201 });
-  } catch (error) {
-    console.log("DETAILED PRISMA ERROR:", error);
-    return NextResponse.json({ error: 'Failed to create employee' }, { status: 500 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.log("DETAILED PRISMA ERROR:", err);
+    return NextResponse.json({ error: err.message }, { status: 400 });
+  }
+}
+
+// تعديل موظف
+export async function PATCH(req: Request) {
+  try {
+    const data = await req.json();
+    console.log("Incoming Data:", data);
+    const id = Number(data.id);
+    const departmentId = Number(data.departmentId);
+    if (!id || !data?.name || !data?.email || !departmentId) {
+      return NextResponse.json(
+        { error: "id, name, email, and departmentId are required" },
+        { status: 400 }
+      );
+    }
+
+    const employee = await prisma.employee.update({
+      where: { id },
+      data: {
+        name: data.name,
+        role: data.role || 'EMPLOYEE',
+        departmentId,
+        ...(data.password ? { password: data.password } : {}),
+      },
+      include: { department: true }
+    });
+
+    return NextResponse.json(employee, { status: 200 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.log("DETAILED PRISMA ERROR:", err);
+    return NextResponse.json({ error: err.message }, { status: 400 });
+  }
+}
+
+// حذف موظف
+export async function DELETE(req: Request) {
+  try {
+    const data = await req.json();
+    const id = Number(data.id);
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: "id is required" },
+        { status: 400 }
+      );
+    }
+
+    const employee = await prisma.employee.delete({
+      where: { id },
+      include: { department: true }
+    });
+
+    return NextResponse.json(employee, { status: 200 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.log("DETAILED PRISMA ERROR:", err);
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }

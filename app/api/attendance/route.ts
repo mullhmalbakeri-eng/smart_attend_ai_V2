@@ -1,69 +1,76 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
 import { arEG } from "date-fns/locale";
 
-const prisma = new PrismaClient();
-
-// GET - Fetch attendance records with status badges
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
     const employeeId = searchParams.get('employeeId');
 
-    // If date is provided, filter by that date, otherwise use today
     const targetDate = date ? new Date(date) : new Date();
     targetDate.setHours(0, 0, 0, 0);
     const nextDay = new Date(targetDate);
     nextDay.setDate(nextDay.getDate() + 1);
 
     const whereClause: any = {
-      timestamp: {
-        gte: targetDate,
-        lt: nextDay
-      }
+      timestamp: { gte: targetDate, lt: nextDay }
     };
 
     if (employeeId) {
       whereClause.employeeId = parseInt(employeeId);
     }
 
-    const attendances = await prisma.attendance.findMany({
-      where: whereClause,
-      include: {
-        employee: {
-          select: { 
-            id: true,
-            name: true, 
-            email: true, 
-            department: {
-              select: {
-                id: true,
-                name: true
-              }
+    const [attendances, totalEmployees] = await Promise.all([
+      prisma.attendance.findMany({
+        where: whereClause,
+        include: {
+          employee: {
+            select: {
+              id: true, name: true, email: true,
+              department: { select: { id: true, name: true } }
             }
           }
-        }
-      },
-      orderBy: {
-        timestamp: 'desc'
-      }
-    });
+        },
+        orderBy: { timestamp: 'desc' }
+      }),
+      prisma.employee.count()
+    ]);
 
-    // Transform data to match expected format
     const records = attendances.map(record => ({
       id: record.id,
       employeeId: record.employeeId,
-      employee: record.employee,
+      user: {
+        id: record.employee.id,
+        name: record.employee.name,
+        email: record.employee.email,
+        department: record.employee.department
+      },
       timestamp: record.timestamp,
       type: record.type,
       status: record.status,
       date: format(new Date(record.timestamp), 'yyyy-MM-dd', { locale: arEG }),
-      time: format(new Date(record.timestamp), 'HH:mm:ss', { locale: arEG })
+      time: format(new Date(record.timestamp), 'HH:mm:ss', { locale: arEG }),
+      formattedDate: format(new Date(record.timestamp), 'dd/MM/yyyy', { locale: arEG }),
+      statusBadge: {
+        text: record.status === 'ON_TIME' ? 'في الوقت' : record.status === 'LATE' ? 'متأخر' : 'خروج',
+        color: 'green', bgColor: '', textColor: '', borderColor: ''
+      }
     }));
 
-    return NextResponse.json({ records });
+    const presentIds = new Set(records.filter(r => r.type === 'IN').map(r => r.employeeId));
+
+    const summary = {
+      total: records.length,
+      onTime: records.filter(r => r.status === 'ON_TIME').length,
+      late: records.filter(r => r.status === 'LATE').length,
+      out: records.filter(r => r.type === 'OUT').length,
+      absent: Math.max(0, totalEmployees - presentIds.size)
+    };
+
+    return NextResponse.json({ records, summary });
+
   } catch (error) {
     console.error('Error fetching attendance:', error);
     return NextResponse.json(
@@ -73,7 +80,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create attendance record
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -95,22 +101,24 @@ export async function POST(request: NextRequest) {
       },
       include: {
         employee: {
-          select: { 
-            id: true,
-            name: true, 
-            email: true, 
-            department: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
+          select: {
+            id: true, name: true, email: true,
+            department: { select: { id: true, name: true } }
           }
         }
       }
     });
 
-    return NextResponse.json(attendance, { status: 201 });
+    return NextResponse.json({
+      ...attendance,
+      user: {
+        id: attendance.employee.id,
+        name: attendance.employee.name,
+        email: attendance.employee.email,
+        department: attendance.employee.department
+      }
+    }, { status: 201 });
+
   } catch (error) {
     console.error('Error creating attendance:', error);
     return NextResponse.json(

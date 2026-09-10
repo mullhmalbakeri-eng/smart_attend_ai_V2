@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { QRCodeSVG } from 'qrcode.react';
 
 // Secret key for QR token generation (in production, use environment variable)
-const QR_SECRET_KEY = process.env.QR_SECRET_KEY || 'smart-attend-qr-secret-key-2024';
+const QR_SECRET_KEY = process.env.QR_SECRET_KEY || 'smart-attend-qr-secret-key-2026';
 
 export interface QRTokenPayload {
   employeeId: number;

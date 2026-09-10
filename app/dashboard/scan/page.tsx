@@ -24,6 +24,10 @@ export default function EmployeeScanPage() {
   const [scanTime, setScanTime] = useState<string>("");
   const [isScanningSuccess, setIsScanningSuccess] = useState(false);
   const [companyName, setCompanyName] = useState<string>("شركة الاتحاد");
+  const [scanMessage, setScanMessage] = useState('');
+  const [scanColor, setScanColor] = useState('green');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showError, setShowError] = useState(false);
   const router = useRouter();
 
   // Get userId from session
@@ -31,25 +35,18 @@ export default function EmployeeScanPage() {
 
   useEffect(() => {
     // Get real user data from localStorage
-    const userEmail = localStorage.getItem('userEmail');
-    const userName = localStorage.getItem('userName');
-    const userRole = localStorage.getItem('userRole');
-    
-    console.log('Scan Page - User data from localStorage:', { userEmail, userName, userRole });
-    
-    if (userEmail && userName) {
-      setUserId(userEmail); // Use email as userId for now
-      setEmployeeName(userName);
-      localStorage.setItem('employeeName', userName);
-    } else {
-      // Fallback to mock data for testing
-      const mockUserId = "user-123";
-      const mockEmployeeName = "أحمد محمد";
-      setUserId(mockUserId);
-      setEmployeeName(mockEmployeeName);
-      localStorage.setItem('employeeName', mockEmployeeName);
-      console.log('Scan Page - Using fallback mock data');
-    }
+   const userData = localStorage.getItem('user');
+   const parsedUser = userData ? JSON.parse(userData) : null;
+   const userEmail = parsedUser?.email;
+   const userName = parsedUser?.name;
+
+if (userEmail && userName) {
+  setUserId(userEmail);
+  setEmployeeName(userName);
+} else {
+  // لا يوجد session — أعد للـ login
+  router.push('/login');
+}
 
     // Load company name
     const loadCompanyName = async () => {
@@ -195,7 +192,9 @@ export default function EmployeeScanPage() {
 
     return () => {
       if (scanner) {
-        scanner.clear().catch((err: any) => console.error("خطأ في الإغلاق", err));
+        try {
+          scanner.clear().catch(() => {});
+        } catch {}
       }
     };
   }, [isScanning, result, cameraPermission, isMobile]);
@@ -222,41 +221,58 @@ export default function EmployeeScanPage() {
         console.log('API Response data:', data);
         
         if (data.success) {
-          // Play success sound
-          const audio = new Audio('/success-sound.mp3');
-          audio.play().catch(e => console.log('Audio play failed:', e));
+          // Play success sound (disabled for now)
+          // const audio = new Audio('/success-sound.mp3');
+          // audio.play().catch(e => console.log('Audio play failed:', e));
           
           // Set success state and time
           const currentTime = new Date().toLocaleTimeString('ar-SA');
           setScanTime(currentTime);
+          
+          // تمييز بين IN و OUT في الرسالة والألوان
+          const isCheckIn = data.attendance.type === 'IN';
+          setScanMessage(isCheckIn ? '✅ تم تسجيل الحضور' : '🚪 تم تسجيل الخروج');
+          setScanColor(isCheckIn ? 'green' : 'blue');
+          
           setIsScanningSuccess(true);
           setShowSuccess(true);
-          
-          // Show success message for 5 seconds
-          setTimeout(() => {
+
+          // حل مشكلة التجمد - clearTimeout صحيح
+          const timer = setTimeout(() => {
             setShowSuccess(false);
             setResult(null);
             setIsScanning(false);
             setIsScanningSuccess(false);
+            setScanMessage('');
           }, 5000);
+
+          return () => clearTimeout(timer); // تنظيف عند unmount
         } else {
           console.error('API returned error:', data.error);
-          alert(data.error || "فشل تسجيل الحضور");
+          setErrorMessage(data.error || 'فشل تسجيل الحضور');
+          setShowError(true);
+          setTimeout(() => setShowError(false), 5000);
         }
       } else {
-        console.error('API call failed with status:', res.status);
-        alert("خطأ في الاتصال بالخادم");
+        const errData = await res.json();
+        setErrorMessage(errData.error || 'خطأ في الاتصال بالخادم');
+        setShowError(true);
+        setTimeout(() => setShowError(false), 5000);
       }
     } catch (error) {
       console.error("API Error:", error);
-      alert("خطأ في الاتصال بالخادم");
+      setErrorMessage('خطأ في الاتصال بالخادم');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 5000);
     }
   };
 
   const handleScan = async () => {
     // Request camera permission before starting scan
     if (cameraPermission === 'denied') {
-      alert('تم رفض إذن الكاميرا. يرجى تفعيله من إعدادات المتصفح');
+      setErrorMessage('تم رفض إذن الكاميرا. يرجى تفعيله من إعدادات المتصفح');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 5000);
       return;
     }
     
@@ -272,9 +288,9 @@ export default function EmployeeScanPage() {
   };
 
   return (
-    <div className={`min-h-screen bg-[#f8fafc] text-slate-900 ${isMobile ? 'pb-20' : 'p-6'}`} style={{ fontFamily: "Cairo, Tajawal, sans-serif" }}>
+    <div className={`min-h-screen bg-[#f8fafc] text-slate-900 ${isMobile ? 'pb-20' : 'p-6'}`} style={{ fontFamily: "Cairo, Tajawal, sans-serif" }} translate="no">
       {/* Header */}
-      <header className="bg-white border border-slate-200 rounded-lg shadow-sm">
+      <header className="bg-white border border-slate-200 rounded-lg shadow-sm" translate="no">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -298,19 +314,50 @@ export default function EmployeeScanPage() {
         </div>
       </header>
 
+      {/* Error Message */}
+      {showError && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm
+                        bg-white border border-red-200 rounded-2xl shadow-xl p-5 text-center"
+             dir="rtl">
+          <div className="text-4xl mb-2">
+            {errorMessage.includes('أكملت يومك') ? '🎉' : '⚠️'}
+          </div>
+          <p className="text-slate-800 font-bold text-lg leading-relaxed">
+            {errorMessage}
+          </p>
+          <button
+            onClick={() => setShowError(false)}
+            className="mt-4 px-6 py-2 bg-slate-100 hover:bg-slate-200
+                       text-slate-700 rounded-xl text-sm font-medium transition-colors"
+          >
+            حسناً
+          </button>
+        </div>
+      )}
+
+      {/* Error Backdrop */}
+      {showError && (
+        <div
+          className="fixed inset-0 bg-black/20 z-40"
+          onClick={() => setShowError(false)}
+        />
+      )}
+
       {/* Success Message */}
       {showSuccess && (
-        <div className="m-4 bg-white border border-green-200 rounded-3xl p-6 text-center shadow-sm">
+        <div className={`m-4 bg-white border ${scanColor === 'green' ? 'border-green-200' : 'border-blue-200'} rounded-3xl p-6 text-center shadow-sm`}>
           <div className="flex items-center justify-center gap-4 mb-4">
-            <CheckCircle className="w-12 h-12 text-green-600" />
+            <CheckCircle className={`w-12 h-12 ${scanColor === 'green' ? 'text-green-600' : 'text-blue-600'}`} />
             <div className="text-right">
-              <h2 className="text-2xl font-bold text-green-700 mb-2">تم تسجيل الحضور بنجاح!</h2>
-              <p className="text-lg text-green-700">مرحباً بك يا {employeeName}</p>
-              <p className="text-md text-green-600 mt-2">الوقت: {scanTime}</p>
+              <h2 className={`text-2xl font-bold ${scanColor === 'green' ? 'text-green-700' : 'text-blue-700'} mb-2`}>{scanMessage}</h2>
+              <p className={`text-lg ${scanColor === 'green' ? 'text-green-700' : 'text-blue-700'}`}>مرحباً بك يا {employeeName}</p>
+              <p className={`text-md ${scanColor === 'green' ? 'text-green-600' : 'text-blue-600'} mt-2`}>الوقت: {scanTime}</p>
             </div>
           </div>
-          <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-            <p className="text-green-700 text-sm">تم تسجيل حضورك بنجاح في النظام</p>
+          <div className={`${scanColor === 'green' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'} rounded-xl p-4 border`}>
+            <p className={`${scanColor === 'green' ? 'text-green-700' : 'text-blue-700'} text-sm`}>
+              {scanColor === 'green' ? 'تم تسجيل حضورك بنجاح في النظام' : 'تم تسجيل خروجك بنجاح في النظام'}
+            </p>
           </div>
         </div>
       )}
@@ -335,33 +382,6 @@ export default function EmployeeScanPage() {
               </div>
             </div>
           )}
-
-          {/* Email Validation Section */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              البريد الإلكتروني
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (emailError) validateEmail(e.target.value);
-              }}
-              onBlur={(e) => validateEmail(e.target.value)}
-              placeholder="example@company.com"
-              className={`w-full px-4 py-3 bg-white border rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                emailError ? 'border-red-300' : 'border-slate-200'
-              }`}
-              dir="ltr"
-            />
-            {emailError && (
-              <p className="mt-2 text-sm text-red-600 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                {emailError}
-              </p>
-            )}
-          </div>
 
           {/* Scanner Section - Mobile Optimized */}
           {isScanning ? (

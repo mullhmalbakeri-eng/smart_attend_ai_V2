@@ -1,7 +1,8 @@
 import jwt from 'jsonwebtoken';
+import { prisma } from './prisma';
 
 // Strong secret key for QR token signing
-const QR_SECRET = process.env.QR_SECRET || 'smart-attend-qr-secret-2024-strong-key';
+const QR_SECRET = process.env.QR_SECRET || 'smart-attend-qr-secret-2026-strong-key';
 
 export interface QRTokenPayload {
   uid: string; // Shortened from userId
@@ -10,22 +11,43 @@ export interface QRTokenPayload {
 }
 
 /**
- * Generate QR token that expires in 15 seconds
- * @param userId User ID string
+ * Generate QR token that expires in 30 seconds and save to database
+ * @param employeeId Employee ID number
  * @returns JWT token string
  */
-export function generateQRToken(userId: string): string {
+export async function generateQRToken(employeeId: number): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
+  const expiresAt = new Date(now * 1000 + 30 * 1000); // 30 seconds from now
   
   const payload: QRTokenPayload = {
-    uid: userId, // Minimal payload
+    uid: String(employeeId),
     iat: now,
-    exp: now + 15 // 15 seconds expiration
+    exp: now + 30 // 30 seconds expiration
   };
 
-  return jwt.sign(payload, QR_SECRET, {
+  const token = jwt.sign(payload, QR_SECRET, {
     algorithm: 'HS256'
   });
+
+  // Save token to database
+  await prisma.qrToken.create({
+    data: {
+      token,
+      employeeId,
+      expiresAt
+    }
+  });
+
+  // Cleanup expired tokens
+  await prisma.qrToken.deleteMany({
+    where: {
+      expiresAt: {
+        lt: new Date()
+      }
+    }
+  });
+
+  return token;
 }
 
 /**

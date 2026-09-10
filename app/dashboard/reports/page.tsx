@@ -24,12 +24,6 @@ import html2canvas from "html2canvas";
 import * as rtlDetect from "rtl-detect";
 import { useToast } from "@/components/ui/toast";
 
-// Dynamic import for client-side only component
-const ArabicPDFExport = dynamic(() => import("@/components/ArabicPDFExport").then(mod => mod.default), {
-  ssr: false,
-  loading: () => <div className="px-4 py-2 bg-gray-300 text-gray-600 rounded-lg">Loading...</div>
-});
-
 interface AttendanceRecord {
   id: number;
   user: {
@@ -128,6 +122,10 @@ export default function ReportsPage() {
     return text;
   };
 
+  const handleExport = () => {
+    window.print();
+  };
+
   const handleExportCSV = async () => {
     try {
       setExporting(true);
@@ -138,17 +136,28 @@ export default function ReportsPage() {
         [],
         headers,
         ...records.map((record) => [
-          record.user.name,
-          record.user.email,
-          record.user.department?.name || "غير محدد",
+          record.user?.name || record.employee?.name || "غير محدد",
+          record.user?.email || record.employee?.email || "",
+          record.user?.department?.name || record.employee?.department?.name || "غير محدد",
           record.formattedDate,
           record.time,
           record.type === "IN" ? "دخول" : "خروج",
           record.statusBadge.text,
         ]),
       ];
-      const csv = "\ufeff" + csvRows.map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      // Use semicolon separator for better Excel compatibility with Arabic
+      const csv = "\ufeff" + csvRows.map((row) => 
+        row.map((cell) => {
+          const cellText = String(cell ?? "").replace(/"/g, '""');
+          // Wrap in quotes if contains semicolon or newline
+          if (cellText.includes(';') || cellText.includes('\n') || cellText.includes('"')) {
+            return `"${cellText}"`;
+          }
+          return cellText;
+        }).join(";")
+      ).join("\r\n");
+      
+      const blob = new Blob([csv], { type: "application/vnd.ms-excel;charset=utf-8;" });
       
       // Create download link with UTF-8 BOM
       const url = window.URL.createObjectURL(blob);
@@ -257,7 +266,7 @@ export default function ReportsPage() {
             <div className="flex items-center gap-4">
               <motion.div
                 whileHover={{ scale: 1.05 }}
-                className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"
+                className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center"
               >
                 <FileText className="w-6 h-6 text-white" />
               </motion.div>
@@ -276,13 +285,15 @@ export default function ReportsPage() {
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              <ArabicPDFExport
-                records={records}
-                summary={summary}
-                companyName={companyName}
-                selectedDate={selectedDate}
-                disabled={exporting}
-              />
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleExport}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center gap-2 transition-all"
+              >
+                <FileText className="w-4 h-4" />
+                طباعة / تصدير PDF
+              </motion.button>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -323,7 +334,7 @@ export default function ReportsPage() {
             <div className="flex items-center gap-4">
               <motion.div
                 whileHover={{ scale: 1.1 }}
-                className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center"
+                className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center"
               >
                 <Building2 className="w-8 h-8 text-white" />
               </motion.div>
@@ -366,7 +377,7 @@ export default function ReportsPage() {
               <motion.div
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
-                className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"
+                className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center"
               >
                 <Users className="w-6 h-6 text-white" />
               </motion.div>
@@ -390,7 +401,7 @@ export default function ReportsPage() {
               <motion.div
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
-                className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center"
+                className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center"
               >
                 <CheckCircle className="w-6 h-6 text-white" />
               </motion.div>
@@ -414,7 +425,7 @@ export default function ReportsPage() {
               <motion.div
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
-                className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center"
+                className="w-12 h-12 bg-yellow-500 rounded-xl flex items-center justify-center"
               >
                 <AlertTriangle className="w-6 h-6 text-white" />
               </motion.div>
@@ -438,7 +449,7 @@ export default function ReportsPage() {
               <motion.div
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
-                className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"
+                className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center"
               >
                 <LogOut className="w-6 h-6 text-white" />
               </motion.div>
@@ -462,7 +473,7 @@ export default function ReportsPage() {
               <motion.div
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
-                className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center"
+                className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center"
               >
                 <XCircle className="w-6 h-6 text-white" />
               </motion.div>
@@ -487,7 +498,12 @@ export default function ReportsPage() {
               سجلات الحضور المتقدمة
             </h3>
           </div>
-          
+
+          <div className="print-header hidden print:block">
+            <h1 style={{fontSize:'20pt', color:'#1E3A8A'}}>{companyName}</h1>
+            <p style={{color:'#475569'}}>تقرير الحضور - {selectedDate}</p>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
@@ -514,12 +530,12 @@ export default function ReportsPage() {
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-semibold text-slate-900">{record.user.name}</div>
-                          <div className="text-sm text-slate-500">{record.user.email}</div>
+                          <div className="text-sm font-semibold text-slate-900">{record.employee?.name || record.user?.name || 'غير معروف'}</div>
+                          <div className="text-sm text-slate-500">{record.employee?.email || record.user?.email || ''}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-slate-900">{record.user.department?.name || 'غير محدد'}</span>
+                        <span className="text-sm text-slate-900">{record.user?.department?.name || record.employee?.department?.name || 'غير محدد'}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm text-slate-900">{record.formattedDate}</span>

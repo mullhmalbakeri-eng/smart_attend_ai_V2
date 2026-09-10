@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* System Colors */
@@ -9,8 +7,8 @@
   --danger: 0 84% 60%;
   --warning: 38 92% 50%;
   --info: 199 89% 48%;
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-arabic: 'Noto Sans Arabic', sans-serif;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-arabic: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* Glassmorphism Effect */
@@ -83,4 +81,65 @@ body {
 
 .fade-in {
   animation: fadeIn 0.5s ease-out;
+}
+
+/* Print Styles */
+@media print {
+  /* إخفاء كل شي ما إلو علاقة بالتقرير */
+  aside,
+  nav,
+  header,
+  [class*="sidebar"],
+  [class*="Sidebar"],
+  .hidden-print,
+  button {
+    display: none !important;
+  }
+
+  /* إخفاء الـ layout wrapper */
+  .flex.h-screen {
+    display: block !important;
+  }
+
+  /* الـ main content يأخذ كل العرض */
+  main {
+    width: 100% !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  /* منع قطع المحتوى */
+  * {
+    overflow: visible !important;
+  }
+
+  /* الجدول لا يتقطع */
+  table {
+    page-break-inside: auto;
+    width: 100%;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group; /* يكرر الهيدر في كل صفحة */
+  }
+
+  /* الصفحة */
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  body {
+    direction: rtl;
+    background: white !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
 }

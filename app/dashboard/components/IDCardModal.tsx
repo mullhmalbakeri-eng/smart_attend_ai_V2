@@ -19,11 +19,13 @@ export default function IDCardModal({ user, isOpen, onClose }: IDCardModalProps)
     return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
   };
 
-  const handlePrint = () => {
+  const handlePrint = (e: React.MouseEvent) => {
+    e.preventDefault();
     window.print();
   };
 
-  const handleDownload = () => {
+  const handleDownload = (e: React.MouseEvent) => {
+    e.preventDefault();
     const link = document.createElement('a');
     link.download = `id-card-${user.name.replace(/\s+/g, '-').toLowerCase()}.png`;
     link.href = qrCodeUrl;

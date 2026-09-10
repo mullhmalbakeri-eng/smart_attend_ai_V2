@@ -14,7 +14,7 @@ export default function RootLayout({
 }) {
   return (
     <html dir="rtl" lang="ar" className="bg-[#f8fafc] text-slate-900">
-      <body className="antialiased bg-[#f8fafc] text-slate-900 font-sans">
+      <body className="antialiased bg-[#f8fafc] text-slate-900 font-sans overflow-x-hidden">
         <ToastProvider>
           {children}
         </ToastProvider>

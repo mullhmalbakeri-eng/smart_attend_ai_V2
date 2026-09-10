@@ -3,29 +3,36 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(request: Request) {
   try {
-    console.log('Creating all test users...');
+    console.log('Creating test employees...');
 
-    // Create Admin User
+    // Get or create default department
+    let defaultDept = await prisma.department.findFirst();
+    if (!defaultDept) {
+      defaultDept = await prisma.department.create({
+        data: { name: 'الإدارة' }
+      });
+    }
+    const departmentId = defaultDept.id;
+
+    // Create Admin Employee
     const adminData = {
       email: 'admin@test.com',
       password: '123456',
-      role: 'ADMIN' as const,
+      role: 'ADMIN',
       name: 'Administrator',
-      uuid: 'admin-uuid-' + Date.now()
+      departmentId: departmentId
     };
 
-    const existingAdmin = await prisma.user.findUnique({
+    const existingAdmin = await prisma.employee.findUnique({
       where: { email: adminData.email }
     });
 
     let admin = existingAdmin;
     if (!existingAdmin) {
-      admin = await prisma.user.create({
-        data: adminData
-      });
-      console.log('Admin user created:', admin.email);
+      admin = await prisma.employee.create({ data: adminData });
+      console.log('Admin employee created:', admin.email);
     } else {
-      admin = await prisma.user.update({
+      admin = await prisma.employee.update({
         where: { email: adminData.email },
         data: {
           password: adminData.password,
@@ -33,30 +40,28 @@ export async function POST(request: Request) {
           name: adminData.name
         }
       });
-      console.log('Admin user updated:', admin.email);
+      console.log('Admin employee updated:', admin.email);
     }
 
-    // Create Employee User
+    // Create Test Employee
     const employeeData = {
       email: 'employee@test.com',
       password: '123456',
-      role: 'EMPLOYEE' as const,
+      role: 'EMPLOYEE',
       name: 'Test Employee',
-      uuid: 'employee-uuid-' + Date.now()
+      departmentId: departmentId
     };
 
-    const existingEmployee = await prisma.user.findUnique({
+    const existingEmployee = await prisma.employee.findUnique({
       where: { email: employeeData.email }
     });
 
     let employee = existingEmployee;
     if (!existingEmployee) {
-      employee = await prisma.user.create({
-        data: employeeData
-      });
-      console.log('Employee user created:', employee.email);
+      employee = await prisma.employee.create({ data: employeeData });
+      console.log('Employee created:', employee.email);
     } else {
-      employee = await prisma.user.update({
+      employee = await prisma.employee.update({
         where: { email: employeeData.email },
         data: {
           password: employeeData.password,
@@ -64,25 +69,15 @@ export async function POST(request: Request) {
           name: employeeData.name
         }
       });
-      console.log('Employee user updated:', employee.email);
+      console.log('Employee updated:', employee.email);
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Test users created/updated successfully',
+      message: 'Test employees created/updated',
       users: [
-        {
-          email: admin.email,
-          name: admin.name,
-          role: admin.role,
-          password: '123456'
-        },
-        {
-          email: employee.email,
-          name: employee.name,
-          role: employee.role,
-          password: '123456'
-        }
+        { email: admin.email, name: admin.name, role: admin.role, password: '123456' },
+        { email: employee.email, name: employee.name, role: employee.role, password: '123456' }
       ]
     });
 
@@ -98,7 +93,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const users = await prisma.user.findMany({
+    const users = await prisma.employee.findMany({
       where: {
         email: {
           in: ['admin@test.com', 'employee@test.com']

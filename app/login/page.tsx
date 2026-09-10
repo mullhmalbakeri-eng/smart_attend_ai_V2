@@ -30,14 +30,40 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // PREVENT DOUBLE CLICKS - disable button immediately
+    if (isLoading) return;
+    
     setError("");
     setIsLoading(true);
 
+    console.log("Attempting Login...");
+
+    // TIMEOUT PROTECTION - reset loading state if server doesn't respond
+    const timeout = setTimeout(() => {
+      console.log("Login timeout - resetting loading state");
+      setIsLoading(false);
+      setError("انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.");
+    }, 5000);
+
     try {
-      // Validate form data
-      const validatedData = loginSchema.parse(formData);
+      // Validate form data - use safeParse to prevent console errors
+      const validationResult = loginSchema.safeParse(formData);
+      if (!validationResult.success) {
+        setError(validationResult.error.errors[0]?.message || "بيانات غير صالحة");
+        setIsLoading(false);
+        clearTimeout(timeout);
+        return;
+      }
+      const validatedData = validationResult.data;
       
-      const response = await fetch("/api/auth/login", {
+      // COMPLETE BYPASS - no external connections
+     const apiUrl = '/api/auth/login';
+      
+      console.log("API URL:", apiUrl);
+      console.log("Login Payload:", validatedData);
+      
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -45,27 +71,35 @@ export default function LoginPage() {
         body: JSON.stringify(validatedData),
       });
 
+      clearTimeout(timeout); // Clear timeout on successful response
+
       const data = await response.json();
+      console.log("Response status:", response.status);
 
       if (response.ok) {
         // Store user data in localStorage
         localStorage.setItem("user", JSON.stringify(data.user));
         localStorage.setItem("userRole", data.user.role);
-        
-        // Redirect based on role
-        if (data.user.role === "ADMIN") {
-          router.push("/dashboard");
-        } else {
-          router.push("/dashboard/scan");
-        }
+        localStorage.setItem("userEmail", data.user.email);  // ← أضف هذا
+        localStorage.setItem("userName", data.user.name);    // ← أضف هذا
+        // DYNAMIC REDIRECT - force clean page load
+        console.log("Login successful, redirecting to dashboard...");
+      
+   
+
+// ثم في handleSubmit:
+      router.push('/dashboard');
       } else {
+        // Silent handling - no console output
         setError(data.error || "فشل تسجيل الدخول");
       }
     } catch (error) {
+      clearTimeout(timeout); // Clear timeout on error
+      // Silent error handling - no console output
       if (error instanceof z.ZodError) {
         setError(error.errors[0]?.message || "بيانات غير صالحة");
       } else {
-        setError("بيانات خاطئة أو مشكلة في قاعدة البيانات");
+        setError("فشل في الاتصال بالخادم. يرجى المحاولة مرة أخرى.");
       }
     } finally {
       setIsLoading(false);
@@ -92,11 +126,11 @@ export default function LoginPage() {
             <p className="text-[#475569] text-sm">أدخل بياناتك للوصول إلى النظام</p>
           </div>
 
-          {/* Error Message */}
+          {/* Alert Message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600" />
-              <p className="text-red-700 text-sm">{error}</p>
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-yellow-600" />
+              <p className="text-yellow-800 text-sm">{error}</p>
             </div>
           )}
 
@@ -148,10 +182,23 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
             >
-              {isLoading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
+              {isLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-transparent animate-spin rounded-full"></div>
+                  <span>جاري تسجيل الدخول...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L5 5l4 4" />
+                  </svg>
+                  <span>تسجيل الدخول</span>
+                </>
+              )}
             </button>
+
           </form>
 
           {/* Footer */}
@@ -168,7 +215,7 @@ export default function LoginPage() {
         {/* Copyright */}
         <div className="text-center mt-8">
           <p className="text-[#475569] text-xs">
-            © 2024 شركة الاتحاد - جميع الحقوق محفوظة
+            © 2026 شركة الاتحاد - جميع الحقوق محفوظة
           </p>
         </div>
       </div>

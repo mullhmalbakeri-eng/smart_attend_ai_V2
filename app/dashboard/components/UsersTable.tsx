@@ -82,19 +82,23 @@ export default function UsersTable() {
     setLoading(true);
 
     try {
-      const url = employeeToEdit ? `/api/employees/${employeeToEdit.id}` : '/api/employees';
-      const method = employeeToEdit ? 'PUT' : 'POST';
+      const url = '/api/employees';
+      const method = employeeToEdit ? 'PATCH' : 'POST';
+      const payload = employeeToEdit
+        ? { ...formData, id: employeeToEdit.id }
+        : formData;
       
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
         await fetchEmployees();
+        router.refresh();
         setIsModalOpen(false);
         setEmployeeToEdit(null);
         setFormData({

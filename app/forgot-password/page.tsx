@@ -189,7 +189,7 @@ export default function ForgotPasswordPage() {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-slate-500 text-sm">
-            © 2024 SmartAttend - جميع الحقوق محفوظة
+            © 2026 SmartAttend - جميع الحقوق محفوظة
           </p>
         </div>
       </div>

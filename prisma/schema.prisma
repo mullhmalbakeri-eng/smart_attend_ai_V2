@@ -8,15 +8,16 @@ datasource db {
 }
 
 model Employee {
-  id            Int          @id @default(autoincrement())
-  email         String       @unique
-  name          String
-  password      String
-  role          String       @default("EMPLOYEE")
-  departmentId  Int
-  department    Department   @relation(fields: [departmentId], references: [id])
-  attendances   Attendance[]
-  createdAt     DateTime     @default(now())
+  id           Int          @id @default(autoincrement())
+  email        String       @unique
+  name         String
+  password     String
+  role         String       @default("EMPLOYEE")
+  departmentId Int
+  createdAt    DateTime     @default(now())
+  attendances  Attendance[]
+  qrTokens     QrToken[]
+  department   Department   @relation(fields: [departmentId], references: [id])
 }
 
 model Department {
@@ -29,15 +30,33 @@ model Attendance {
   id         Int      @id @default(autoincrement())
   date       DateTime @default(now())
   timestamp  DateTime @default(now())
-  type       String   // 'IN' | 'OUT'
+  type       String
   status     String
   employeeId Int
   employee   Employee @relation(fields: [employeeId], references: [id])
 }
 
+model QrToken {
+  id         Int      @id @default(autoincrement())
+  token      String   @unique
+  employeeId Int
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  isUsed     Boolean  @default(false)
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  
+  @@index([token])
+  @@index([expiresAt])
+  @@index([employeeId])
+}
+
 model CompanySettings {
-  id                String   @id @default(cuid())
-  companyName       String   @default("شركة الاتحاد")
-  qrRefreshInterval Int      @default(30)
-  createdAt         DateTime @default(now())
+  id                 String   @id @default(cuid())
+  companyName        String   @default("شركة الاتحاد")
+  logoUrl            String?
+  workStartTime      String   @default("09:00")
+  workEndTime        String   @default("17:00")
+  gracePeriodMinutes Int      @default(15)
+  qrRefreshInterval  Int      @default(30)
+  createdAt          DateTime @default(now())
 }

@@ -14,6 +14,13 @@ import {
 
 const menuItems = [
   {
+    name: 'لوحة التحكم',
+    description: 'نظرة عامة على النظام',
+    href: '/dashboard',
+    icon: LayoutDashboard,
+    adminOnly: true
+  },
+  {
     name: 'الموظفين',
     description: 'إدارة الموظفين والصلاحيات',
     href: '/dashboard/users',
@@ -21,9 +28,9 @@ const menuItems = [
     adminOnly: true
   },
   {
-    name: 'سجل الحضور',
-    description: 'سجل الحضور والانصراف',
-    href: '/dashboard/attendance',
+    name: 'شاشة الحضور الحية',
+    description: 'مراقبة الحضور بشكل مباشر',
+    href: '/dashboard/live-monitor',
     icon: UserCheck,
     adminOnly: false
   },
@@ -56,25 +63,23 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
   useEffect(() => {
     setMounted(true);
     const userData = localStorage.getItem('user');
+    const storedRole = localStorage.getItem('userRole');
     if (userData) {
       try {
         const user = JSON.parse(userData);
-        setUserRole(user.role);
+        setUserRole(user?.role || storedRole);
       } catch (error) {
         console.error('Failed to parse user data:', error);
+        setUserRole(storedRole);
       }
+    } else {
+      setUserRole(storedRole);
     }
   }, []);
 
-  // Don't render until mounted to prevent hydration mismatch
+  // Static placeholder to prevent React freeze on mobile
   if (!mounted) {
-    return (
-      <aside className="fixed top-0 right-0 h-full w-72 bg-[#1e293b] z-50">
-        <div className="flex items-center justify-center h-full">
-          <div className="text-white">Loading...</div>
-        </div>
-      </aside>
-    );
+    return <div className="w-72 h-screen bg-[#1e293b]" />;
   }
 
   return (
@@ -92,10 +97,11 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
         fixed top-0 right-0 h-full w-72 bg-[#1e293b] z-50
         transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}
-        lg:translate-x-0 lg:static lg:z-0
+        lg:translate-x-0
+        md:translate-x-full
       `}>
         
-        {/* Sidebar Header - شركة الاتحاد Branding */}
+        {/* Sidebar Header */}
         <div className="p-6 border-b border-slate-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">

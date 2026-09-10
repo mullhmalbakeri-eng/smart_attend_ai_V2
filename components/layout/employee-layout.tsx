@@ -66,7 +66,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
       <footer className="fixed bottom-0 left-0 right-0 bg-slate-800/50 backdrop-blur-sm border-t border-slate-700">
         <div className="max-w-7xl mx-auto px-6 py-3">
           <p className="text-center text-slate-400 text-sm">
-            © 2024 نظام الحضور الذكي - جميع الحقوق محفوظة
+            © 2026 نظام الحضور الذكي - جميع الحقوق محفوظة
           </p>
         </div>
       </footer>

@@ -95,16 +95,27 @@ export default function SettingsPage() {
       
       let response: Response;
       try {
-        response = await fetch('/api/company-settings', {
+        // Check if we're running on mobile (different host)
+        const isMobile = window.location.hostname !== 'localhost';
+        const baseUrl = isMobile ? `http://${window.location.hostname}:3000` : '';
+        const apiUrl = `${baseUrl}/api/company-settings`;
+        
+        console.log('Attempting to fetch from:', apiUrl);
+        
+        response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(payload),
         });
+        
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        
       } catch (fetchError) {
         console.error('Failed to reach settings API:', fetchError);
-        setMessage({ type: 'error', text: 'تعذر الاتصال بخدمة الإعدادات' });
+        setMessage({ type: 'error', text: 'تعذر الاتصال بخدمة الإعدادات - تحقق من اتصال الشبكة' });
         return;
       }
 
